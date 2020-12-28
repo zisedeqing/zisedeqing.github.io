@@ -6,12 +6,12 @@
   
   <title>Greenplum 6.0 HA | zisedeqing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
+  <meta name="description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Greenplum 6.0 HA">
 <meta property="og:url" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/index.html">
 <meta property="og:site_name" content="zisedeqing">
-<meta property="og:description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
+<meta property="og:description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch.png">
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch2.png">
@@ -30,8 +30,11 @@
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/pg_recvlogical.png">
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/6.0-4.3-diff.png">
 <meta property="article:published_time" content="2020-12-28T12:44:34.000Z">
-<meta property="article:modified_time" content="2020-12-28T13:08:23.724Z">
+<meta property="article:modified_time" content="2020-12-28T13:46:52.499Z">
 <meta property="article:author" content="John Doe">
+<meta property="article:tag" content="greenplum">
+<meta property="article:tag" content="streaming replication">
+<meta property="article:tag" content="mirror">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch.png">
   
@@ -99,7 +102,7 @@
 </a>
     
   <div class="article-category">
-    <a class="article-category-link" href="/categories/greenplum/">greenplum</a>
+    <a class="article-category-link" href="/categories/greenplum/">greenplum</a>►<a class="article-category-link" href="/categories/greenplum/ha/">ha</a>
   </div>
 
   </div>
@@ -118,7 +121,9 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch.png" alt="整体架构图"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch2.png" alt="primary-mirror"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
+        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。</p>
+<a id="more"></a>
+<p>整体架构如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch.png" alt="整体架构图"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch2.png" alt="primary-mirror"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
 <h1 id="2-streaming-replication"><a href="#2-streaming-replication" class="headerlink" title="2. streaming replication"></a>2. streaming replication</h1><p>streaming replication实际上是由2部分组成，一是base backup和流复制协议，base backup是流复制的基本，在primary/master的snapshot上，把增量修改通过流复制协议同步给standby/mirror。</p>
 <h2 id="2-1-base-backup"><a href="#2-1-base-backup" class="headerlink" title="2.1 base backup"></a>2.1 base backup</h2><p>base backup 主要是对primary/segment通过在线的方式对于节点做一个snapshot，以供后续根据该snapshot搭建standby或者PITR(Point-in-Time Recovery)。</p>
 <p>pg提供的机制做base backup的方式如下：</p>
@@ -440,6 +445,8 @@
       
       
       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mirror/" rel="tag">mirror</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/streaming-replication/" rel="tag">streaming replication</a></li></ul>
+
     </footer>
   </div>
   
@@ -475,7 +482,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">分类</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/">greenplum</a></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/">greenplum</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/aocs/">aocs</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/ha/">ha</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/transaction/">transaction</a></li></ul></li></ul>
     </div>
   </div>
 
@@ -495,7 +502,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">标签</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/aocs/" rel="tag">aocs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/test/" rel="tag">test</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%88%97%E5%AD%98/" rel="tag">列存</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/aocs/" rel="tag">aocs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/fts/" rel="tag">fts</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mirror/" rel="tag">mirror</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/snapshot/" rel="tag">snapshot</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/streaming-replication/" rel="tag">streaming replication</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/test/" rel="tag">test</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%88%97%E5%AD%98/" rel="tag">列存</a></li></ul>
     </div>
   </div>
 
@@ -506,6 +513,14 @@
     <h3 class="widget-title">最新文章</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/">Greenplum Fts实现</a>
+          </li>
+        
+          <li>
+            <a href="/2020/12/28/Greenplum-shared-snapshot/">Greenplum shared snapshot</a>
+          </li>
         
           <li>
             <a href="/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/">Greenplum 列存原理分析</a>
