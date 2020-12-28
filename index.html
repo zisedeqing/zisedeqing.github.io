@@ -74,9 +74,13 @@
     <article id="post-Greenplum-6-0-HA" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2020/12/28/Greenplum-6-0-HA/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T09:15:05.000Z" itemprop="datePublished">2020-12-28</time>
+  <time class="dt-published" datetime="2020-12-28T09:28:38.000Z" itemprop="datePublished">2020-12-28</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/greenplum/">greenplum</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
@@ -93,16 +97,58 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570" alt="image.png"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664" alt="image.png"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/" data-id="ckj8d1r0y00004nfydtm873ey" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-Greenplum-6-0-HA-1" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/28/Greenplum-6-0-HA-1/" class="article-date">
+  <time class="dt-published" datetime="2020-12-28T09:27:07.000Z" itemprop="datePublished">2020-12-28</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/greenplum/">greenplum</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/28/Greenplum-6-0-HA-1/">Greenplum 6.0 HA</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：</p>
         
           <p class="article-more-link">
-            <a href="/2020/12/28/Greenplum-6-0-HA/#more">Read More</a>
+            <a href="/2020/12/28/Greenplum-6-0-HA-1/#more">Read More</a>
           </p>
         
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/" data-id="ckj8cjsox0001t9fy2cyudtkd" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA-1/" data-id="ckj8d1r1a00044nfybu1eedax" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
       
       
       
@@ -149,7 +195,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/hello-world/" data-id="ckj8cjsom0000t9fy0du93za4" data-title="Hello World" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/hello-world/" data-id="ckj8d1r1400014nfygv13gi4t" data-title="Hello World" class="article-share-link">分享</a>
       
       
       
@@ -168,6 +214,13 @@
           <aside id="sidebar">
   
     
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/greenplum/">greenplum</a></li></ul>
+    </div>
+  </div>
+
 
   
     
@@ -193,6 +246,10 @@
         
           <li>
             <a href="/2020/12/28/Greenplum-6-0-HA/">Greenplum 6.0 HA</a>
+          </li>
+        
+          <li>
+            <a href="/2020/12/28/Greenplum-6-0-HA-1/">Greenplum 6.0 HA</a>
           </li>
         
           <li>
