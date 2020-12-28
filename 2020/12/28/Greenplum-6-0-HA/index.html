@@ -6,12 +6,12 @@
   
   <title>Greenplum 6.0 HA | zisedeqing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="Greenplum 6.0 HA1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步ma">
+  <meta name="description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Greenplum 6.0 HA">
 <meta property="og:url" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/index.html">
 <meta property="og:site_name" content="zisedeqing">
-<meta property="og:description" content="Greenplum 6.0 HA1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步ma">
+<meta property="og:description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570">
 <meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664">
@@ -33,7 +33,7 @@
 <meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516224190-7af74a48-961a-4369-b173-700c7df76589.png">
 <meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571225020572-177dbdaa-e40a-46e8-867d-36415943f5fd.png#align=left&display=inline&height=553&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1106&originWidth=1610&size=203914&status=done&style=none&width=805">
 <meta property="article:published_time" content="2020-12-28T09:15:05.000Z">
-<meta property="article:modified_time" content="2020-12-28T09:15:43.204Z">
+<meta property="article:modified_time" content="2020-12-28T09:24:04.285Z">
 <meta property="article:author" content="John Doe">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570">
@@ -115,7 +115,8 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <h1 id="Greenplum-6-0-HA"><a href="#Greenplum-6-0-HA" class="headerlink" title="Greenplum 6.0 HA"></a>Greenplum 6.0 HA</h1><h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570" alt="image.png"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664" alt="image.png"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
+        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570" alt="image.png"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664" alt="image.png"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
+<a id="more"></a>
 <h1 id="2-streaming-replication"><a href="#2-streaming-replication" class="headerlink" title="2. streaming replication"></a>2. streaming replication</h1><p>streaming replication实际上是由2部分组成，一是base backup和流复制协议，base backup是流复制的基本，在primary/master的snapshot上，把增量修改通过流复制协议同步给standby/mirror。</p>
 <h2 id="2-1-base-backup"><a href="#2-1-base-backup" class="headerlink" title="2.1 base backup"></a>2.1 base backup</h2><p>base backup 主要是对primary/segment通过在线的方式对于节点做一个snapshot，以供后续根据该snapshot搭建standby或者PITR(Point-in-Time Recovery)。</p>
 <p>pg提供的机制做base backup的方式如下：</p>
