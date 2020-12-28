@@ -6,39 +6,34 @@
   
   <title>Greenplum 6.0 HA | zisedeqing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。">
+  <meta name="description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Greenplum 6.0 HA">
 <meta property="og:url" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/index.html">
 <meta property="og:site_name" content="zisedeqing">
-<meta property="og:description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。">
+<meta property="og:description" content="1. 整体架构Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary&#x2F;mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个se">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570679226487-f2f9cdf8-75f9-441c-b7de-69763cbbb4d0.png#align=left&display=inline&height=336&margin=%5Bobject%20Object%5D&name=image.png&originHeight=672&originWidth=494&size=35308&status=done&style=none&width=247">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570683593867-502d043e-3e3b-412b-b24f-85a9a298a538.png#align=left&display=inline&height=133&margin=%5Bobject%20Object%5D&name=image.png&originHeight=266&originWidth=1150&size=55082&status=done&style=none&width=575">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570695149163-8bc624b8-dd20-4eb6-ae35-731db09c3b54.png#align=left&display=inline&height=460&margin=%5Bobject%20Object%5D&name=image.png&originHeight=920&originWidth=554&size=63099&status=done&style=none&width=277">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/147211/1597127130264-54f9ac59-306a-4753-938e-756bdf500225.png#align=left&display=inline&height=531&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1062&originWidth=1932&size=193957&status=done&style=none&width=966">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570781254185-e3fef5db-f3d5-4c4b-bf04-ac650b5103a1.png#align=left&display=inline&height=132&margin=%5Bobject%20Object%5D&name=image.png&originHeight=141&originWidth=450&size=13424&status=done&style=none&width=422">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570846361725-be864399-439c-485e-9e8a-90bd48ddf914.png#align=left&display=inline&height=360&margin=%5Bobject%20Object%5D&name=image.png&originHeight=720&originWidth=864&size=87167&status=done&style=none&width=432">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570848317856-b34b61e6-c148-4e29-8fb8-d16a04ff14ae.png#align=left&display=inline&height=701&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1402&originWidth=928&size=109146&status=done&style=none&width=464">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107170586-e51bf712-9921-428b-9f0c-f8a161d98c10.png#align=left&display=inline&height=281&margin=%5Bobject%20Object%5D&name=image.png&originHeight=562&originWidth=2774&size=123674&status=done&style=none&width=1387">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107450569-caeb96f2-cd93-4f9b-a085-2663baa40ee8.png#align=left&display=inline&height=400&margin=%5Bobject%20Object%5D&name=image.png&originHeight=800&originWidth=1850&size=215040&status=done&style=none&width=925">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107548957-a42f9907-e405-490d-9f43-cee50f11c290.png#align=left&display=inline&height=259&margin=%5Bobject%20Object%5D&name=image.png&originHeight=518&originWidth=2782&size=149260&status=done&style=none&width=1391">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571046315462-6c0fc0aa-e1a9-48b0-98f4-61c872235d4a.png#align=left&display=inline&height=752&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1504&originWidth=1532&size=175074&status=done&style=none&width=766">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571053157710-c89349b1-b503-4b0d-b479-a9a412640e8d.png#align=left&display=inline&height=264&margin=%5Bobject%20Object%5D&name=image.png&originHeight=684&originWidth=1556&size=212653&status=done&style=none&width=601">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571039485073-aa824261-e4bb-4c2c-bc90-b2b3bb8693a2.png#align=left&display=inline&height=514&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1028&originWidth=1390&size=154199&status=done&style=none&width=695">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516194383-e43d4144-bc22-46e7-8448-f3e9fcacfc09.png#align=left&display=inline&height=183&margin=%5Bobject%20Object%5D&name=image.png&originHeight=572&originWidth=1054&size=133617&status=done&style=none&width=337">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516208420-702491c1-0697-4496-9282-5beac41a661d.png#align=left&display=inline&height=181&margin=%5Bobject%20Object%5D&name=image.png&originHeight=570&originWidth=1016&size=139558&status=done&style=none&width=323">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516224190-7af74a48-961a-4369-b173-700c7df76589.png">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571225020572-177dbdaa-e40a-46e8-867d-36415943f5fd.png#align=left&display=inline&height=553&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1106&originWidth=1610&size=203914&status=done&style=none&width=805">
-<meta property="article:published_time" content="2020-12-28T09:28:38.000Z">
-<meta property="article:modified_time" content="2020-12-28T12:36:45.957Z">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch2.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/do_pg_start_backup.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/backup-label-file.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/do_pg_stop_backup.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/streaming-replication.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/SyncRepWaitForLSN.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/wal-sender-state.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/wal-send-main-loop.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/pg_stat_replication.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/gp_stat_replication.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/wal-receiver.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/WaitForWALToBecomeAvailable.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/WaitForWALToBecomeAvailable2.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/pg_recvlogical.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/6.0-4.3-diff.png">
+<meta property="article:published_time" content="2020-12-28T12:44:34.000Z">
+<meta property="article:modified_time" content="2020-12-28T13:08:23.724Z">
 <meta property="article:author" content="John Doe">
-<meta property="article:tag" content="greenplum">
-<meta property="article:tag" content="ha">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570">
+<meta name="twitter:image" content="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/arch.png">
   
     <link rel="alternate" href="/atom.xml" title="zisedeqing" type="application/atom+xml">
   
@@ -100,7 +95,7 @@
         <section id="main"><article id="post-Greenplum-6-0-HA" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2020/12/28/Greenplum-6-0-HA/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T09:28:38.000Z" itemprop="datePublished">2020-12-28</time>
+  <time class="dt-published" datetime="2020-12-28T12:44:34.000Z" itemprop="datePublished">2020-12-28</time>
 </a>
     
   <div class="article-category">
@@ -123,9 +118,7 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。</p>
-<a id="more"></a>
-<p>整体架构如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570608599484-6382a5a5-688f-461b-9519-423053b15b34.png#align=left&display=inline&height=421&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1070&originWidth=1450&size=132766&status=done&style=none&width=570" alt="image.png"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570610487569-71dd59bd-5d13-473b-9aa8-dacbbf87f85a.png#align=left&display=inline&height=211&margin=%5Bobject%20Object%5D&name=image.png&originHeight=422&originWidth=1328&size=79023&status=done&style=none&width=664" alt="image.png"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
+        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。整体架构如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch.png" alt="整体架构图"><br>Greenplum 集群有一个master和若干个segment组成，master有一个standby做备份，实时同步master上的元数据变更，每个segment都有一个mirror节点，通过流复制实时同步segment上的元信息和数据变更。master/standby和segment的primary/mirror的流复制结构图如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/arch2.png" alt="primary-mirror"><br>在master或者primary节点上，用户backend产生XLOG并修改数据，wal sender进程 读取用户新产生的xlog数据，然后通过流复制协议发送到standby或者mirror节点的wal receiver进程。wal receiver进程接收wal sender发送过来的xlog record，并把xlog record写入xlog 文件，startup进程读取wal sender写入的xlog文件，实时redo产生的xlog record，并把数据变更写入文件。</p>
 <h1 id="2-streaming-replication"><a href="#2-streaming-replication" class="headerlink" title="2. streaming replication"></a>2. streaming replication</h1><p>streaming replication实际上是由2部分组成，一是base backup和流复制协议，base backup是流复制的基本，在primary/master的snapshot上，把增量修改通过流复制协议同步给standby/mirror。</p>
 <h2 id="2-1-base-backup"><a href="#2-1-base-backup" class="headerlink" title="2.1 base backup"></a>2.1 base backup</h2><p>base backup 主要是对primary/segment通过在线的方式对于节点做一个snapshot，以供后续根据该snapshot搭建standby或者PITR(Point-in-Time Recovery)。</p>
 <p>pg提供的机制做base backup的方式如下：</p>
@@ -147,7 +140,7 @@
 <ol>
 <li>do_pg_start_backup</li>
 </ol>
-<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570679226487-f2f9cdf8-75f9-441c-b7de-69763cbbb4d0.png#align=left&display=inline&height=336&margin=%5Bobject%20Object%5D&name=image.png&originHeight=672&originWidth=494&size=35308&status=done&style=none&width=247" alt="image.png"><br>do_pg_start_backup 主要的目的就是要做一次checkpoint，以便后续standby的的redo。</p>
+<p><img src="/2020/12/28/Greenplum-6-0-HA/do_pg_start_backup.png" alt="do_pg_start_backup"><br>do_pg_start_backup 主要的目的就是要做一次checkpoint，以便后续standby的的redo。</p>
 <ul>
 <li>full page write</li>
 </ul>
@@ -159,7 +152,7 @@
 <ul>
 <li>create backup label file</li>
 </ul>
-<p>backup label file 不一定会创建，如果是通过流复制协议的BASE_BACKUP命令，就不会创建该文件，但是会把文件的内容发送到client端。backup label file 内容如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570683593867-502d043e-3e3b-412b-b24f-85a9a298a538.png#align=left&display=inline&height=133&margin=%5Bobject%20Object%5D&name=image.png&originHeight=266&originWidth=1150&size=55082&status=done&style=none&width=575" alt="image.png"></p>
+<p>backup label file 不一定会创建，如果是通过流复制协议的BASE_BACKUP命令，就不会创建该文件，但是会把文件的内容发送到client端。backup label file 内容如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/backup-label-file.png" alt="backup label file"></p>
 <ul>
 <li>CHECKPOINT LOCATION</li>
 </ul>
@@ -195,11 +188,11 @@
 <ol start="4">
 <li>do_pg_stop_backup</li>
 </ol>
-<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570695149163-8bc624b8-dd20-4eb6-ae35-731db09c3b54.png#align=left&display=inline&height=460&margin=%5Bobject%20Object%5D&name=image.png&originHeight=920&originWidth=554&size=63099&status=done&style=none&width=277" alt="image.png"><br>do_pg_stop_backup主要做的事情是把do_pg_start_backup修改的状态重置，并且插入一个backup end xlog，该xlog在standby或者PITR时，用来检查数据一致性</p>
+<p><img src="/2020/12/28/Greenplum-6-0-HA/do_pg_stop_backup.png" alt="do_pg_stop_backup"><br>do_pg_stop_backup主要做的事情是把do_pg_start_backup修改的状态重置，并且插入一个backup end xlog，该xlog在standby或者PITR时，用来检查数据一致性</p>
 <ol start="5">
 <li>if need, send wal file to client</li>
 </ol>
-<h2 id="2-2-streaming-replication"><a href="#2-2-streaming-replication" class="headerlink" title="2.2 streaming replication"></a>2.2 streaming replication</h2><p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/147211/1597127130264-54f9ac59-306a-4753-938e-756bdf500225.png#align=left&display=inline&height=531&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1062&originWidth=1932&size=193957&status=done&style=none&width=966" alt="image.png"><br>上图展示了master/primary与standby/mirror如何通过streaming replication来实现数据同步的：</p>
+<h2 id="2-2-streaming-replication"><a href="#2-2-streaming-replication" class="headerlink" title="2.2 streaming replication"></a>2.2 streaming replication</h2><p><img src="/2020/12/28/Greenplum-6-0-HA/streaming-replication.png" alt="streaming replication"><br>上图展示了master/primary与standby/mirror如何通过streaming replication来实现数据同步的：</p>
 <ol>
 <li>master/primary的user backend 执行用户sql，修改数据并产生XLOG，在提交之前backend进程通知wal sender进程把新产生的xlog 同步到 standby/mirror。</li>
 <li>wal sender 进程循环读取xlog file，如果有新的xlog产生，则把xlog 通过流复制协议发送给standby/mirror。</li>
@@ -210,9 +203,9 @@
 <li>recovery进程循环读取xlog file，如果有新的xlog，则redo。</li>
 </ol>
 <p>streaming replication是master/pirmary产生日志并且flush到xlog 文件之后wal sender才能把xlog 同步到standby/mirror。所以这里还是有一个时间差的，即使在强同步的模式下，如果master/primary在flush xlog后宕掉了，这些flush的xlog是有可能没有同步到standby/mirror上的。</p>
-<h3 id="2-2-1-SyncRepWaitForLSN"><a href="#2-2-1-SyncRepWaitForLSN" class="headerlink" title="2.2.1 SyncRepWaitForLSN"></a>2.2.1 SyncRepWaitForLSN</h3><p>SyncRepWaitForLSN 是用户backend 在事务prepare/commit/abort阶段等待当前事务的xlog全部同步到standby/mirror的接口，该函数调用栈：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570781254185-e3fef5db-f3d5-4c4b-bf04-ac650b5103a1.png#align=left&display=inline&height=132&margin=%5Bobject%20Object%5D&name=image.png&originHeight=141&originWidth=450&size=13424&status=done&style=none&width=422" alt="image.png"><br>SyncRepWaitForLSN函数的主要功能是根据用户配置的同步模式，等待xlog 同步到standby/mirror。</p>
+<h3 id="2-2-1-SyncRepWaitForLSN"><a href="#2-2-1-SyncRepWaitForLSN" class="headerlink" title="2.2.1 SyncRepWaitForLSN"></a>2.2.1 SyncRepWaitForLSN</h3><p>SyncRepWaitForLSN 是用户backend 在事务prepare/commit/abort阶段等待当前事务的xlog全部同步到standby/mirror的接口，该函数调用栈：<br><img src="/2020/12/28/Greenplum-6-0-HA/SyncRepWaitForLSN.png" alt="SyncRepWaitForLSN"><br>SyncRepWaitForLSN函数的主要功能是根据用户配置的同步模式，等待xlog 同步到standby/mirror。</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>synchronous_commit</strong></li>
+<li><input checked disabled type="checkbox"> <strong>synchronous_commit</strong></li>
 </ul>
 <p>通过guc参数配置同步级别，级别从低到高：</p>
 <table>
@@ -237,7 +230,7 @@
 </tbody></table>
 <p>默认是SYNCHRONOUS_COMMIT_REMOTE_FLUSH。</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>wait 时的中断处理</strong></li>
+<li><input checked disabled type="checkbox"> <strong>wait 时的中断处理</strong></li>
 </ul>
 <p>有两种中断：</p>
 <ul>
@@ -285,34 +278,35 @@
 <ul>
 <li>timeline 表示要复制的xlog的时间线，如果是历史的时间线，则把改时间线内的xlog复制完后，就结束</li>
 <li>startpos xlog复制的起点，一般是base bakcup中返回的start wal location</li>
-<li><input checked="" disabled="" type="checkbox"> <strong>wal sender state</strong></li>
+<li><input checked disabled type="checkbox"> <strong>wal sender state</strong></li>
 </ul>
-<p>wal sender 通过状态机来工作，状态转换如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570846361725-be864399-439c-485e-9e8a-90bd48ddf914.png#align=left&display=inline&height=360&margin=%5Bobject%20Object%5D&name=image.png&originHeight=720&originWidth=864&size=87167&status=done&style=none&width=432" alt="image.png"><br>WALSNDSTATE_STARTUP： 表示wal sender 已经启动，等待输入<br>WALSNDSTATE_BACKUP： 表中wal sender正在做base backup<br>WALSNDSTATE_CATCHUP：表示wal sender正在发送xlog，standby/mirror正在追赶master/primary的xlog<br>WALSNDSTATE_STREAMING：表示standby/mirror与master/primary的xlog处于同步状态。<br>处于该状态的wal sender才可能会成为sync的。当第一次把所有的xlog发送给wal receiver后，从WALSNDSTATE_CATCHUP转换成WALSNDSTATE_STREAMING。</p>
+<p>wal sender 通过状态机来工作，状态转换如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/wal-sender-state.png" alt="wal sender state"><br>WALSNDSTATE_STARTUP： 表示wal sender 已经启动，等待输入<br>WALSNDSTATE_BACKUP： 表中wal sender正在做base backup<br>WALSNDSTATE_CATCHUP：表示wal sender正在发送xlog，standby/mirror正在追赶master/primary的xlog<br>WALSNDSTATE_STREAMING：表示standby/mirror与master/primary的xlog处于同步状态。<br>处于该状态的wal sender才可能会成为sync的。当第一次把所有的xlog发送给wal receiver后，从WALSNDSTATE_CATCHUP转换成WALSNDSTATE_STREAMING。</p>
 <p>WALSNDSTATE_STOPPING: wal sender 正在关闭</p>
 <p>可以通过pg_stat_get_wal_senders函数查看wal sender的状态信息。</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>wal send main loop</strong></li>
+<li><input checked disabled type="checkbox"> <strong>wal send main loop</strong></li>
 </ul>
-<p>wal send main loop 流程图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570848317856-b34b61e6-c148-4e29-8fb8-d16a04ff14ae.png#align=left&display=inline&height=701&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1402&originWidth=928&size=109146&status=done&style=none&width=464" alt="image.png"><br>wal sender不断的读取xlog file并发送的wal receiver端，如果没有xlog可读或者上一次的数据还未发送完，则wal sender会处于block状态，唤醒的事件有：WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT |    WL_SOCKET_READABLE。</p>
+<p>wal send main loop 流程图如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/wal-send-main-loop.png" alt="wal send main loop"><br>wal sender不断的读取xlog file并发送的wal receiver端，如果没有xlog可读或者上一次的数据还未发送完，则wal sender会处于block状态，唤醒的事件有：WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT |    WL_SOCKET_READABLE。</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>standby/mirror reply</strong></li>
+<li><input checked disabled type="checkbox"> <strong>standby/mirror reply</strong></li>
 </ul>
 <p>‘c’ 报文： standby/mirror 结束流复制<br>‘X’ 报文:  standby/mirror socket 关闭<br>‘d’ 报文：状态报文，会把standby/mirror的状态，有2个功能：<br>‘r’:  汇报xlog flush和redo信息，有如下项：<br>xlog writer location<br>xlog flush location<br>xlog redo location<br>wal sender 收到这些信息后，可以根据这些信息唤醒正在等待提交的事务，或者防止xlog被过早的回收（Greenplum不会出现这个问题）<br>‘h’:  hot standby feedback，Greenplum不支持hot standby<br>防止master过早的回收standby可能还需要查询的tuple 版本。<br>这个问题是这样的，vacuum在清理tuple无效版本时，一般是把所有正在运行的事务都不可见的tuple版本清理掉，但是master在做时，只能确定master上所有的事务不可见，但是无法确定tuple版本在standby上是否有事务可见。如果master不理standby而直接把standby上有事务可见的tuple版本清理到，则wal sender把这些更改同步到standby上后，standby的query可能会报错：ERROR: canceling statement due to conflict with recovery。<br>postgresql的解决方案是：hot standby定期汇报自己的oldest xid，master 在清理tuple时，把standby上的事务也考虑在内。</p>
 <h4 id="2-2-2-3-相关系统表"><a href="#2-2-2-3-相关系统表" class="headerlink" title="2.2.2.3 相关系统表"></a>2.2.2.3 相关系统表</h4><ol>
 <li>pg_stat_replication</li>
 </ol>
-<p>postgresql内置系统视图，可以查询单节点上的wal sender状态，如下图所示：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107170586-e51bf712-9921-428b-9f0c-f8a161d98c10.png#align=left&display=inline&height=281&margin=%5Bobject%20Object%5D&name=image.png&originHeight=562&originWidth=2774&size=123674&status=done&style=none&width=1387" alt="image.png"></p>
+<p>postgresql内置系统视图，可以查询单节点上的wal sender状态，如下图所示：<br><img src="/2020/12/28/Greenplum-6-0-HA/pg_stat_replication.png" alt="pg_stat_replication"></p>
 <ol start="2">
 <li>gp_stat_replication<br>greemplum6.0 内置系统视图，实际上是对pg_stat_replication的封装：</li>
 </ol>
-<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107450569-caeb96f2-cd93-4f9b-a085-2663baa40ee8.png#align=left&display=inline&height=400&margin=%5Bobject%20Object%5D&name=image.png&originHeight=800&originWidth=1850&size=215040&status=done&style=none&width=925" alt="image.png"><br>该视图可以在master上执行，收集master和所有segment的replication信息，如下图所示：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571107548957-a42f9907-e405-490d-9f43-cee50f11c290.png#align=left&display=inline&height=259&margin=%5Bobject%20Object%5D&name=image.png&originHeight=518&originWidth=2782&size=149260&status=done&style=none&width=1391" alt="image.png"></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">FUNCTION</span> gp_stat_get_master_replication() <span class="keyword">RETURNS</span> SETOF RECORD <span class="keyword">AS</span></span><br><span class="line">$$</span><br><span class="line">    <span class="keyword">SELECT</span> pg_catalog.gp_execution_segment() <span class="keyword">AS</span> gp_segment_id, <span class="operator">*</span></span><br><span class="line">    <span class="keyword">FROM</span> pg_catalog.pg_stat_replication</span><br><span class="line">$$</span><br><span class="line"><span class="keyword">LANGUAGE</span> <span class="keyword">SQL</span> <span class="keyword">EXECUTE</span> <span class="keyword">ON</span> MASTER;</span><br><span class="line"></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">FUNCTION</span> gp_stat_get_segment_replication() <span class="keyword">RETURNS</span> SETOF RECORD <span class="keyword">AS</span></span><br><span class="line">$$</span><br><span class="line">    <span class="keyword">SELECT</span> pg_catalog.gp_execution_segment() <span class="keyword">AS</span> gp_segment_id, <span class="operator">*</span></span><br><span class="line">    <span class="keyword">FROM</span> pg_catalog.pg_stat_replication</span><br><span class="line">$$</span><br><span class="line"><span class="keyword">LANGUAGE</span> <span class="keyword">SQL</span> <span class="keyword">EXECUTE</span> <span class="keyword">ON</span> <span class="keyword">ALL</span> SEGMENTS;</span><br><span class="line"></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">FUNCTION</span> gp_stat_get_segment_replication_error() <span class="keyword">RETURNS</span> SETOF RECORD <span class="keyword">AS</span></span><br><span class="line">$$</span><br><span class="line">    <span class="keyword">SELECT</span> pg_catalog.gp_execution_segment() <span class="keyword">AS</span> gp_segment_id, pg_catalog.gp_replication_error() <span class="keyword">as</span> sync_error</span><br><span class="line">$$</span><br><span class="line"><span class="keyword">LANGUAGE</span> <span class="keyword">SQL</span> <span class="keyword">EXECUTE</span> <span class="keyword">ON</span> <span class="keyword">ALL</span> SEGMENTS;</span><br><span class="line"></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">VIEW</span> gp_stat_replication <span class="keyword">AS</span></span><br><span class="line">    <span class="keyword">SELECT</span> <span class="operator">*</span>, pg_catalog.gp_replication_error() <span class="keyword">AS</span> sync_error</span><br><span class="line">    <span class="keyword">FROM</span> pg_catalog.gp_stat_get_master_replication() <span class="keyword">AS</span> R</span><br><span class="line">    (gp_segment_id <span class="type">integer</span>, pid <span class="type">integer</span>, usesysid oid,</span><br><span class="line">     usename name, application_name text, client_addr inet, client_hostname text,</span><br><span class="line">     client_port <span class="type">integer</span>, backend_start timestamptz, backend_xmin xid, state text,</span><br><span class="line">     sent_location pg_lsn, write_location pg_lsn, flush_location pg_lsn,</span><br><span class="line">     replay_location pg_lsn, sync_priority <span class="type">integer</span>, sync_state text)</span><br><span class="line">    <span class="keyword">UNION</span> <span class="keyword">ALL</span></span><br><span class="line">    (</span><br><span class="line">        <span class="keyword">SELECT</span> G.gp_segment_id</span><br><span class="line">            , R.pid, R.usesysid, R.usename, R.application_name, R.client_addr</span><br><span class="line">            , R.client_hostname, R.client_port, R.backend_start, R.backend_xmin, R.state</span><br><span class="line">	    , R.sent_location, R.write_location, R.flush_location</span><br><span class="line">	    , R.replay_location, R.sync_priority, R.sync_state, G.sync_error</span><br><span class="line">        <span class="keyword">FROM</span> (</span><br><span class="line">            <span class="keyword">SELECT</span> E.<span class="operator">*</span></span><br><span class="line">            <span class="keyword">FROM</span> pg_catalog.gp_segment_configuration C</span><br><span class="line">            <span class="keyword">JOIN</span> pg_catalog.gp_stat_get_segment_replication_error()</span><br><span class="line">	    <span class="keyword">AS</span> E (gp_segment_id <span class="type">integer</span>, sync_error text)</span><br><span class="line">            <span class="keyword">ON</span> c.content <span class="operator">=</span> E.gp_segment_id</span><br><span class="line">            <span class="keyword">WHERE</span> C.role <span class="operator">=</span> <span class="string">&#x27;m&#x27;</span></span><br><span class="line">        ) G</span><br><span class="line">        <span class="keyword">LEFT</span> <span class="keyword">OUTER</span> <span class="keyword">JOIN</span> pg_catalog.gp_stat_get_segment_replication() <span class="keyword">AS</span> R</span><br><span class="line">        (gp_segment_id <span class="type">integer</span>, pid <span class="type">integer</span>, usesysid oid,</span><br><span class="line">         usename name, application_name text, client_addr inet,</span><br><span class="line">	 client_hostname text, client_port <span class="type">integer</span>, backend_start timestamptz,</span><br><span class="line">	 backend_xmin xid, state text, sent_location pg_lsn,</span><br><span class="line">	 write_location pg_lsn, flush_location pg_lsn,</span><br><span class="line">         replay_location pg_lsn, sync_priority <span class="type">integer</span>, sync_state text)</span><br><span class="line">         <span class="keyword">ON</span> G.gp_segment_id <span class="operator">=</span> R.gp_segment_id</span><br><span class="line">    );</span><br></pre></td></tr></table></figure>
+<p>该视图可以在master上执行，收集master和所有segment的replication信息，如下图所示：<br><img src="/2020/12/28/Greenplum-6-0-HA/gp_stat_replication.png" alt="gp_stat_replication"></p>
 <ol start="3">
 <li>pg_xlog_location_diff</li>
 </ol>
 <p>可以通过如下sql查看mirror/standby 的日志落后了primary/master多少：</p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> </span><br><span class="line">	gp_execution_segment() <span class="keyword">as</span> gp_segment_id, </span><br><span class="line">  pg_xlog_location_diff(pg_current_xlog_location(),replay_location)<span class="operator">/</span><span class="number">1024</span><span class="operator">/</span><span class="number">1024</span> <span class="keyword">as</span> MB</span><br><span class="line"><span class="keyword">from</span> gp_dist_random(<span class="string">&#x27;pg_stat_replication&#x27;</span>);</span><br></pre></td></tr></table></figure>
 
-<h3 id="2-3-2-wal-receiver"><a href="#2-3-2-wal-receiver" class="headerlink" title="2.3.2 wal receiver"></a>2.3.2 wal receiver</h3><p>wal receiver 是standby/mirror的后台进程，在recovery进程redo完现有日志后，会通过RequestXLogStreaming 接口启动wal receiver进程，链接master/primary 启动wal sender进程同步xlog。<br>wal receiver流程图如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571046315462-6c0fc0aa-e1a9-48b0-98f4-61c872235d4a.png#align=left&display=inline&height=752&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1504&originWidth=1532&size=175074&status=done&style=none&width=766" alt="image.png"><br>wal receiver 有2层循环，内层循环处理某一个时间线内的xlog的receive，当该时间线内的xlog处理完后，wal sender会停止发送xlog，wal receiver会从master/primary上拉取 最新的timeline history，然后等待startup 进程确定下一个时间线的xlog start location。<br>外层循环处理所有时间线的xlog，每次都会依次发送IDENTIFY_SYSTEM、START_REPLICATION command，从新开始新一个时间线的复制。</p>
+<h3 id="2-3-2-wal-receiver"><a href="#2-3-2-wal-receiver" class="headerlink" title="2.3.2 wal receiver"></a>2.3.2 wal receiver</h3><p>wal receiver 是standby/mirror的后台进程，在recovery进程redo完现有日志后，会通过RequestXLogStreaming 接口启动wal receiver进程，链接master/primary 启动wal sender进程同步xlog。<br>wal receiver流程图如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/wal-receiver.png" alt="wal receiver"><br>wal receiver 有2层循环，内层循环处理某一个时间线内的xlog的receive，当该时间线内的xlog处理完后，wal sender会停止发送xlog，wal receiver会从master/primary上拉取 最新的timeline history，然后等待startup 进程确定下一个时间线的xlog start location。<br>外层循环处理所有时间线的xlog，每次都会依次发送IDENTIFY_SYSTEM、START_REPLICATION command，从新开始新一个时间线的复制。</p>
 <p>为什么在receive xlog时，会有多个时间线呢？</p>
 <ol>
 <li>cascade replication</li>
@@ -325,8 +319,8 @@
 <ol start="3">
 <li>因为bug导致的</li>
 </ol>
-<p>在WaitForWALToBecomeAvailable代码的注释中提到：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571053157710-c89349b1-b503-4b0d-b479-a9a412640e8d.png#align=left&display=inline&height=264&margin=%5Bobject%20Object%5D&name=image.png&originHeight=684&originWidth=1556&size=212653&status=done&style=none&width=601" alt="image.png"></p>
-<h3 id="2-4-2-startup-process"><a href="#2-4-2-startup-process" class="headerlink" title="2.4.2 startup process"></a>2.4.2 startup process</h3><p>startup 进程是standby/mirror上用于xlog replay进程，在standby/mirror启动时，startup进程启动，根据recovery.conf中的配置，确定recovery方式，然后read xlog并redo xlog，如果pg_xlog目录下的xlog都已经redo完，并且standbymode 为on的话，调用RequestXLogStreaming接口启动wal receiver，从master/primary获取xlog，wal receiver收到xlog后，在通知startup 进行redo，如此循环，直到standby promote为master/primary。<br>startup process 主函数为StartupXLOG，该函数无论是用于启动时做xlog replay的主函数。对于postgresql来说只有xlog redo到一致状态后，系统才可以接收服务。对于primary/master，StartupXLOG只是redo pg_xlog目录下面的xlog，对于standby或者其他recovery方式(PITR) 来说值redo pg_xlog 下的日志是不够的。postgresql实现了一个状态机，用来控制xlog的来源，该代码实现在WaitForWALToBecomeAvailable函数内。<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571039485073-aa824261-e4bb-4c2c-bc90-b2b3bb8693a2.png#align=left&display=inline&height=514&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1028&originWidth=1390&size=154199&status=done&style=none&width=695" alt="image.png"><br>XLOG_FROM_ANY： 需要的xlog可以是任何来源：archive, pg_xlog,stream,甚至是用户手动copy到pg_xlog下，该状态不参与状态的转换。<br>XLOG_FROM_ARCHIVE：从restore_command从获取xlog<br>XLOG_FROM_PG_XLOG：需要的xlog在pg_xlog目录下<br>XLOG_FROM_STREAM：需要从master/primary 获取xlog</p>
+<p>在WaitForWALToBecomeAvailable代码的注释中提到：<br><img src="/2020/12/28/Greenplum-6-0-HA/WaitForWALToBecomeAvailable.png" alt="WaitForWALToBecomeAvailable"></p>
+<h3 id="2-4-2-startup-process"><a href="#2-4-2-startup-process" class="headerlink" title="2.4.2 startup process"></a>2.4.2 startup process</h3><p>startup 进程是standby/mirror上用于xlog replay进程，在standby/mirror启动时，startup进程启动，根据recovery.conf中的配置，确定recovery方式，然后read xlog并redo xlog，如果pg_xlog目录下的xlog都已经redo完，并且standbymode 为on的话，调用RequestXLogStreaming接口启动wal receiver，从master/primary获取xlog，wal receiver收到xlog后，在通知startup 进行redo，如此循环，直到standby promote为master/primary。<br>startup process 主函数为StartupXLOG，该函数无论是用于启动时做xlog replay的主函数。对于postgresql来说只有xlog redo到一致状态后，系统才可以接收服务。对于primary/master，StartupXLOG只是redo pg_xlog目录下面的xlog，对于standby或者其他recovery方式(PITR) 来说值redo pg_xlog 下的日志是不够的。postgresql实现了一个状态机，用来控制xlog的来源，该代码实现在WaitForWALToBecomeAvailable函数内。<br><img src="/2020/12/28/Greenplum-6-0-HA/WaitForWALToBecomeAvailable2.png" alt="WaitForWALToBecomeAvailable state"><br>XLOG_FROM_ANY： 需要的xlog可以是任何来源：archive, pg_xlog,stream,甚至是用户手动copy到pg_xlog下，该状态不参与状态的转换。<br>XLOG_FROM_ARCHIVE：从restore_command从获取xlog<br>XLOG_FROM_PG_XLOG：需要的xlog在pg_xlog目录下<br>XLOG_FROM_STREAM：需要从master/primary 获取xlog</p>
 <h3 id="2-5-2-streaming-replication-protocal"><a href="#2-5-2-streaming-replication-protocal" class="headerlink" title="2.5.2 streaming replication protocal"></a>2.5.2 streaming replication protocal</h3><p>流复制协议，用于实现流复制功能，协议的具体细节可以参考postgresql的官方文档：<a target="_blank" rel="noopener" href="https://www.postgresql.org/docs/9.4/protocol-replication.html">https://www.postgresql.org/docs/9.4/protocol-replication.html</a>。<br>如果想要测试流复制写，可以使用psql执行流复制的command，命令如下：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">PGOPTIONS=<span class="string">&quot;-c gp_session_role=utility&quot;</span> psql <span class="string">&quot;dbname=postgres replication=database&quot;</span> -h host -p port</span><br></pre></td></tr></table></figure>
 
@@ -366,7 +360,7 @@
 <h1 id="4-logical-decoding"><a href="#4-logical-decoding" class="headerlink" title="4. logical decoding"></a>4. logical decoding</h1><p>logical decoding是postgresql9.4 添加的一个新的功能，可以通过流的方法把数据库的修改通过sql的形式发送消费者。logical replication slot 标识这些修改，并且这些更改只会发送一次。<br>postgresql9.4 版本的logical decoding只支持insert/update/delete 操作，在后面postgresql11时支持了truncate 操作。<br>logical decoding在Greenplum6.0中也是支持的，不过无法对整个集群做，只能对每个segment、master做，可用性比较差。</p>
 <h2 id="4-1-pg-recvlogical"><a href="#4-1-pg-recvlogical" class="headerlink" title="4.1 pg_recvlogical"></a>4.1 pg_recvlogical</h2><p>postgresql官方提供的一个用于接收服务端发送的logical log的工具，简单的用法如下：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># create one new logical replication slot for pg_recvlogical</span></span><br><span class="line">pg_recvlogical --create_slot -S test_slot -d postgres -p 12000</span><br><span class="line"></span><br><span class="line"><span class="comment"># start receive logical log</span></span><br><span class="line">pg_recvlogical --start -S test_slot -d postgres -p 12000 -f -</span><br></pre></td></tr></table></figure>
-<p>pg_recvlogical的输出如下：<br><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516194383-e43d4144-bc22-46e7-8448-f3e9fcacfc09.png#align=left&display=inline&height=183&margin=%5Bobject%20Object%5D&name=image.png&originHeight=572&originWidth=1054&size=133617&status=done&style=none&width=337" alt="image.png"><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516208420-702491c1-0697-4496-9282-5beac41a661d.png#align=left&display=inline&height=181&margin=%5Bobject%20Object%5D&name=image.png&originHeight=570&originWidth=1016&size=139558&status=done&style=none&width=323" alt="image.png"><br>        <img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1570516224190-7af74a48-961a-4369-b173-700c7df76589.png" alt="image.png"><br>从上图可以看到delete的时候没有解析到删除的行，这个原因是xlog记录的不全导致的，可以通过alter table来修改表在update/delete时对于old tuple的处理方式：<br>DEFAULT：如果有primary key，则记录old tuple的primary key对应的column value， 该方式是user table的默认方式<br>USING INDEX indexname：记录old tuple中indexname key对应的column value<br>FULL：记录old tuple所有的column value<br>NOTHONG：不记录old tuple， system table 的默认方式</p>
+<p>pg_recvlogical的输出如下：<br><img src="/2020/12/28/Greenplum-6-0-HA/pg_recvlogical.png" alt="pg_recvlogical"><br>从上图可以看到delete的时候没有解析到删除的行，这个原因是xlog记录的不全导致的，可以通过alter table来修改表在update/delete时对于old tuple的处理方式：<br>DEFAULT：如果有primary key，则记录old tuple的primary key对应的column value， 该方式是user table的默认方式<br>USING INDEX indexname：记录old tuple中indexname key对应的column value<br>FULL：记录old tuple所有的column value<br>NOTHONG：不记录old tuple， system table 的默认方式</p>
 <h2 id="4-2-logical-decoding实现"><a href="#4-2-logical-decoding实现" class="headerlink" title="4.2 logical decoding实现"></a>4.2 logical decoding实现</h2><p>logical decoding 的实现分为下面几个部分：</p>
 <ol>
 <li>logical decoding，负责把数据库的更改，转换成更容易理解的格式，在postgresql中是把wal日志解析成指定的格式。</li>
@@ -384,34 +378,34 @@
 </ol>
 <h1 id="5-相关tools"><a href="#5-相关tools" class="headerlink" title="5. 相关tools"></a>5. 相关tools</h1><p>postgresql自带的工具</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>pg_recvlogical</strong></li>
+<li><input checked disabled type="checkbox"> <strong>pg_recvlogical</strong></li>
 </ul>
 <p>用于接收服务器端发送的logical log，使用示例：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># create one new logical replication slot for pg_recvlogical</span></span><br><span class="line">pg_recvlogical --create_slot -S test_slot -d postgres -p 12000</span><br><span class="line"></span><br><span class="line"><span class="comment"># start receive logical log</span></span><br><span class="line">pg_recvlogical --start -S test_slot -d postgres -p 12000 -f -</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>pg_receivexlog</strong></li>
+<li><input checked disabled type="checkbox"> <strong>pg_receivexlog</strong></li>
 </ul>
 <p>与pg_recvlogical对应，用于接收服务器端发送的wal log</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>pg_basebackup</strong></li>
+<li><input checked disabled type="checkbox"> <strong>pg_basebackup</strong></li>
 </ul>
 <p>用于对数据库创建base backup</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>pg_rewind</strong></li>
+<li><input checked disabled type="checkbox"> <strong>pg_rewind</strong></li>
 </ul>
 <p>用于修改old master data，方便把old master重新加入集群</p>
 <p>greemplum添加的工具：</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>gpinitstandby</strong></li>
+<li><input checked disabled type="checkbox"> <strong>gpinitstandby</strong></li>
 </ul>
 <p>为master添加standby节点，执行逻辑为：<br>Updating pg_hba.conf file<br>Do pg_basebackup<br>BASE_BACKUP LABEL ‘pg_basebackup base backup’ PROGRESS WAL FAST NOWAIT  EXCLUDE ‘./db_dumps’EXCLUDE ‘./gpperfmon/data’EXCLUDE ‘./gpperfmon/logs’EXCLUDE ‘./promote’<br>Starting standby master</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>gpaddmirrors</strong></li>
+<li><input checked disabled type="checkbox"> <strong>gpaddmirrors</strong></li>
 </ul>
 <p>为segment添加mirror节点，与gpinitstandby类似，都是对流复制协议的封装</p>
 <ul>
-<li><input checked="" disabled="" type="checkbox"> <strong>gprecoverseg</strong></li>
+<li><input checked disabled type="checkbox"> <strong>gprecoverseg</strong></li>
 </ul>
 <p>recovery 挂掉的segment，使用pg_rewind把旧节点重新加入到集群</p>
 <h1 id="6-fts-fault-tolerance-server"><a href="#6-fts-fault-tolerance-server" class="headerlink" title="6. fts(fault tolerance server)"></a>6. fts(<strong>fault tolerance server)</strong></h1><p>master 监控primary和mirror状态，并在发生故障时，做主备切换。master只会给primary发探活消息，mirror的状态是primary通过wal sender状态来确定，并反馈给master的。</p>
@@ -424,7 +418,7 @@
 <p>FTS_SYNCREP_OFF_FAILED<br>FTS_PROMOTE_FAILED</p>
 <p>fts相关的几个参数，以及线上默认值：<br>gp_fts_probe_retries：3<br>gp_fts_probe_interval: 30s<br>gp_request_fts_probe_scan<br>gp_fts_probe_timeout: 60s</p>
 <p><strong>最大切换时间: 30 + 3 * (60 + 1) = 213s**<br>*<em>如果不发生timeout是: 30 + 3</em>1 = 33s</strong></p>
-<h1 id="7-与Greenplum-4-3的对比"><a href="#7-与Greenplum-4-3的对比" class="headerlink" title="7. 与Greenplum 4.3的对比"></a>7. 与Greenplum 4.3的对比</h1><p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1571225020572-177dbdaa-e40a-46e8-867d-36415943f5fd.png#align=left&display=inline&height=553&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1106&originWidth=1610&size=203914&status=done&style=none&width=805" alt="image.png"></p>
+<h1 id="7-与Greenplum-4-3的对比"><a href="#7-与Greenplum-4-3的对比" class="headerlink" title="7. 与Greenplum 4.3的对比"></a>7. 与Greenplum 4.3的对比</h1><p><img src="/2020/12/28/Greenplum-6-0-HA/6.0-4.3-diff.png" alt="6.0与4.3对比"></p>
 <p>Greenplum 4.3 的数据同步分为两种：<br>一是master与standby的同步，使用postgresql原生的streaming replication<br>二是primary与mirror的同步，使用greenplum自己开发的file replication</p>
 <p>而Greenplum 6.0 的数据同步同一使用postgresql原生的streaming replication，这样做有比较多的好处：</p>
 <ol>
@@ -446,8 +440,6 @@
       
       
       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ha/" rel="tag">ha</a></li></ul>
-
     </footer>
   </div>
   
@@ -494,7 +486,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">标签</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ha/" rel="tag">ha</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/test/" rel="tag">test</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/test/" rel="tag">test</a></li></ul>
     </div>
   </div>
 
