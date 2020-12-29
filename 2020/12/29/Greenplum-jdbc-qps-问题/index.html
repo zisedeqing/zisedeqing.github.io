@@ -4,15 +4,26 @@
   <meta charset="utf-8">
   
   
-  <title>zisedeqing</title>
+  <title>Greenplum jdbc qps 问题 | zisedeqing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="zisedeqing">
-<meta property="og:url" content="https://zisedeqing.github.io/index.html">
+  <meta name="description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本： 12345678910111213141516171819202122232425262728293031323334#!&#x2F;bin&#x2F;bashpronum&#x3D;4dbname&#x3D;postgreswait_end()&amp;#123;    while true    do	j">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Greenplum jdbc qps 问题">
+<meta property="og:url" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/index.html">
 <meta property="og:site_name" content="zisedeqing">
+<meta property="og:description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本： 12345678910111213141516171819202122232425262728293031323334#!&#x2F;bin&#x2F;bashpronum&#x3D;4dbname&#x3D;postgreswait_end()&amp;#123;    while true    do	j">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png">
+<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1554898235110-1fe5b5e3-7d77-4e7c-98bb-2d994d67ff82.png#align=left&display=inline&height=397&name=image.png&originHeight=794&originWidth=1946&size=157693&status=done&width=973">
+<meta property="article:published_time" content="2020-12-29T01:23:26.000Z">
+<meta property="article:modified_time" content="2020-12-29T01:51:00.888Z">
 <meta property="article:author" content="John Doe">
+<meta property="article:tag" content="greenplum">
+<meta property="article:tag" content="jdbc">
+<meta property="article:tag" content="qps">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png">
   
     <link rel="alternate" href="/atom.xml" title="zisedeqing" type="application/atom+xml">
   
@@ -71,66 +82,7 @@
 </header>
 
       <div class="outer">
-        <section id="main">
-  
-    <article id="post-postgresql-jdbc-走simple-query-protocol" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" class="article-date">
-  <time class="dt-published" datetime="2020-12-29T01:56:00.000Z" itemprop="datePublished">2020-12-29</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/postgresql/">postgresql</a>►<a class="article-category-link" href="/categories/postgresql/jdbc/">jdbc</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/">postgresql jdbc 走simple query protocol</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>默认情况下，jdbc的所有sql使用extended query protocol，不过pg的jdbc提供了使用simple query protocol方法。<br><strong>需要注意的是，使用simple query protocol后，jdbc的cursor功能将会失效，也就是无论setFetchSize设置为多大，jdbc都会一次把数据全部存到jdbc。不过resultset的滚动和update功能还是可以使用的。</strong></p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>connection级别</strong></li>
-</ul>
-<p>在链接字符串中添加preferQueryMode=simple参数，这样connection所有的sql执行使用的都是simple query protocol。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line"><span class="comment">// set preferQueryMode=simple</span></span><br><span class="line">Connection conn = DriverManager.getConnection(<span class="string">&quot;jdbc:postgresql://localhost:15432/postgres?preferQueryMode=simple&quot;</span>, <span class="string">&quot;postgres&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">Statement stmt = conn.createStatement();</span><br><span class="line">ResultSet rs = stmt.executeQuery(<span class="string">&quot;select * from test8 where b = 1&quot;</span>);</span><br><span class="line"><span class="keyword">while</span> (rs.next()) &#123;</span><br><span class="line">	ResultSetMetaData rsm = rs.getMetaData();</span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt;= rsm.getColumnCount(); i++) &#123;</span><br><span class="line">		System.out.println(rsm.getColumnName(i) + <span class="string">&quot;:&quot;</span> + rs.getString(i));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><input checked disabled type="checkbox"> <strong>sql级别</strong></li>
-</ul>
-<p>如果只针对某些sql使用simple query protocol，标准jdbc接口是无法实现的，只能通过pg的jdbc接口实现</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// preferQueryMode 不能为simpe或者extended,可以为extendedForPrepared或者extendedCacheEverything</span></span><br><span class="line">Connection conn = DriverManager.getConnection(<span class="string">&quot;jdbc:postgresql://localhost:15432/postgres?preferQueryMode=extendedForPrepared&quot;</span>, <span class="string">&quot;postgres&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 强制转换标准Statement为PgStatement</span></span><br><span class="line">PgStatement pgStmt = (PgStatement)conn.createStatement();</span><br><span class="line"><span class="keyword">if</span> (pgStmt.executeWithFlags(<span class="string">&quot;select * from test8 where b = 2&quot;</span>, QueryExecutor.QUERY_EXECUTE_AS_SIMPLE)) &#123;</span><br><span class="line">  ResultSet rs = pgStmt.getResultSet();</span><br><span class="line">  <span class="keyword">while</span> (rs.next()) &#123;</span><br><span class="line">	ResultSetMetaData rsm = rs.getMetaData();</span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt;= rsm.getColumnCount(); i++) &#123;</span><br><span class="line">		System.out.println(rsm.getColumnName(i) + <span class="string">&quot;:&quot;</span> + rs.getString(i));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" data-id="ckj9cdhzv0000x2fygw6tfnwb" data-title="postgresql jdbc 走simple query protocol" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/jdbc/" rel="tag">jdbc</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/postgresql/" rel="tag">postgresql</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/simple/" rel="tag">simple</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-Greenplum-jdbc-qps-问题" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+        <section id="main"><article id="post-Greenplum-jdbc-qps-问题" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/" class="article-date">
   <time class="dt-published" datetime="2020-12-29T01:23:26.000Z" itemprop="datePublished">2020-12-29</time>
@@ -147,8 +99,8 @@
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/">Greenplum jdbc qps 问题</a>
+    <h1 class="p-name article-title" itemprop="headline name">
+      Greenplum jdbc qps 问题
     </h1>
   
 
@@ -212,256 +164,28 @@
     </footer>
   </div>
   
-</article>
-
-
-
+    
+<nav id="article-nav">
   
-    <article id="post-Greenplum-Fts实现" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T13:47:20.000Z" itemprop="datePublished">2020-12-28</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/greenplum6-0/">greenplum6.0</a>►<a class="article-category-link" href="/categories/greenplum6-0/ha/">ha</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
+    <a href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
         
+          postgresql jdbc 走simple query protocol
+        
+      </div>
+    </a>
   
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/">Greenplum Fts实现</a>
-    </h1>
   
+    <a href="/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">Greenplum Fts实现</div>
+    </a>
+  
+</nav>
 
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h1 id="FTS"><a href="#FTS" class="headerlink" title="FTS"></a>FTS</h1><p>Greenplum 总共存在2个角色，每个角色有分别实现了standby，分别是：master和master的standby， primary segment和mirror segment。数据库的fault tolerance由fault tolerance server（简称FTS）来处理。<br>FTS主要监控和控制segment节点的状态，以及发生异常时进行切换，FTS并不监控standby的状态，目前的实现是由管控控制。<br>    FTS 由2类进程组成：ftsprobe 进程和 fts handle message 进程，ftsprobe 进程在master上，定期给segment发送探活消息， fts handle message 进程是segment上处理ftsprobe 进程探活消息的，改进程不是守护进程，处理完一次探活后，即退出。</p>
-        
-          <p class="article-more-link">
-            <a href="/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/#more">Read More</a>
-          </p>
-        
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/" data-id="ckj8mbksc000003fy3d9o1nb8" data-title="Greenplum Fts实现" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/fts/" rel="tag">fts</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li></ul>
-
-    </footer>
-  </div>
   
 </article>
-
-
-
-  
-    <article id="post-Greenplum-shared-snapshot" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/28/Greenplum-shared-snapshot/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T13:33:03.000Z" itemprop="datePublished">2020-12-28</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/greenplum4-3/">greenplum4.3</a>►<a class="article-category-link" href="/categories/greenplum4-3/transaction/">transaction</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/28/Greenplum-shared-snapshot/">Greenplum shared snapshot</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>shared snapshot是gp新引入的一个机制，用于在每个segment上同一个transaction的QE writer与QE reader之间共享snapshot。</p>
-        
-          <p class="article-more-link">
-            <a href="/2020/12/28/Greenplum-shared-snapshot/#more">Read More</a>
-          </p>
-        
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-shared-snapshot/" data-id="ckj8lx1jy0000vzfy1hh200an" data-title="Greenplum shared snapshot" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/snapshot/" rel="tag">snapshot</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-Greenplum-列存原理分析" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T13:15:43.000Z" itemprop="datePublished">2020-12-28</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/greenplum6-0/">greenplum6.0</a>►<a class="article-category-link" href="/categories/greenplum6-0/aocs/">aocs</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/">Greenplum 列存原理分析</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h1 id="1-相关代码"><a href="#1-相关代码" class="headerlink" title="1. 相关代码"></a>1. 相关代码</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">src&#x2F;backend&#x2F;access&#x2F;aocs</span><br><span class="line">                    aocs_compaction.c</span><br><span class="line">                    aocsam.c</span><br><span class="line">                    aocssegfiles.c</span><br><span class="line">                &#x2F;appendonly</span><br><span class="line">                    appendonlyam.c</span><br><span class="line">                    aomd.c</span><br><span class="line">                    aosegfiles.c</span><br><span class="line">                    appendonly_compaction.c</span><br><span class="line">                    appendonly_visimap.c</span><br><span class="line">                    appendonly_visimap_entry.c</span><br><span class="line">                    appendonly_visimap_store.c</span><br><span class="line">                    appendonly_visimap_udf.c</span><br><span class="line">                    appendonlyblockdirectory.c</span><br><span class="line">                    appendonlytid.c</span><br><span class="line">                    appendonlywriter.c</span><br><span class="line">src&#x2F;backend&#x2F;utils&#x2F;datumstream</span><br><span class="line">                    datumstream.c</span><br><span class="line">                    datumstreamblock.c</span><br><span class="line">src&#x2F;backend&#x2F;cdb&#x2F;</span><br><span class="line">                cdbbufferedappend.c</span><br><span class="line">                cdbbufferedread.c</span><br></pre></td></tr></table></figure>
-        
-          <p class="article-more-link">
-            <a href="/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/#more">Read More</a>
-          </p>
-        
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" data-id="ckj8li7y70000qlfy6pgug6xz" data-title="Greenplum 列存原理分析" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/aocs/" rel="tag">aocs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%88%97%E5%AD%98/" rel="tag">列存</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-Greenplum-6-0-HA" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/28/Greenplum-6-0-HA/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T12:44:34.000Z" itemprop="datePublished">2020-12-28</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/greenplum6-0/">greenplum6.0</a>►<a class="article-category-link" href="/categories/greenplum6-0/ha/">ha</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/28/Greenplum-6-0-HA/">Greenplum 6.0 HA</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h1 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h1><p>Greenplum 6.0 在HA的架构上与4.3基本上一样的，改动比较大的是primary/mirror之间的数据同步机制，由4.3的file replication 改为streaming replication。</p>
-        
-          <p class="article-more-link">
-            <a href="/2020/12/28/Greenplum-6-0-HA/#more">Read More</a>
-          </p>
-        
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/" data-id="ckj8jmxd500050bfyhd1i80iz" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/greenplum/" rel="tag">greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mirror/" rel="tag">mirror</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/streaming-replication/" rel="tag">streaming replication</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2020/12/28/hello-world/" class="article-date">
-  <time class="dt-published" datetime="2020-12-28T08:59:53.742Z" itemprop="datePublished">2020-12-28</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2020/12/28/hello-world/">Hello World</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/hello-world/" data-id="ckj8jmxcv00010bfyh59xgkqm" data-title="Hello World" class="article-share-link">分享</a>
-      
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/test/" rel="tag">test</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
 </section>
