@@ -6,18 +6,18 @@
   
   <title>Greenplum jdbc qps 问题 | zisedeqing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本： 12345678910111213141516171819202122232425262728293031323334#!&#x2F;bin&#x2F;bashpronum&#x3D;4dbname&#x3D;postgreswait_end()&amp;#123;    while true    do	j">
+  <meta name="description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本：">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Greenplum jdbc qps 问题">
 <meta property="og:url" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/index.html">
 <meta property="og:site_name" content="zisedeqing">
-<meta property="og:description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本： 12345678910111213141516171819202122232425262728293031323334#!&#x2F;bin&#x2F;bashpronum&#x3D;4dbname&#x3D;postgreswait_end()&amp;#123;    while true    do	j">
+<meta property="og:description" content="背景目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。在docker里面做了一下测试，下面是测试脚本：">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png">
 <meta property="og:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png">
-<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1554898235110-1fe5b5e3-7d77-4e7c-98bb-2d994d67ff82.png#align=left&display=inline&height=397&name=image.png&originHeight=794&originWidth=1946&size=157693&status=done&width=973">
+<meta property="og:image" content="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/assignGangs.png">
 <meta property="article:published_time" content="2020-12-29T01:23:26.000Z">
-<meta property="article:modified_time" content="2020-12-29T01:51:00.888Z">
+<meta property="article:modified_time" content="2020-12-29T02:07:53.161Z">
 <meta property="article:author" content="John Doe">
 <meta property="article:tag" content="greenplum">
 <meta property="article:tag" content="jdbc">
@@ -109,6 +109,7 @@
     <div class="e-content article-entry" itemprop="articleBody">
       
         <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。<br>在docker里面做了一下测试，下面是测试脚本：</p>
+<a id="more"></a>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line">pronum=4</span><br><span class="line">dbname=postgres</span><br><span class="line"></span><br><span class="line">wait_end()</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">while</span> <span class="literal">true</span></span><br><span class="line">    <span class="keyword">do</span></span><br><span class="line">	<span class="built_in">jobs</span></span><br><span class="line">        running=`<span class="built_in">jobs</span>|wc -l`</span><br><span class="line">        ret=$?</span><br><span class="line">        [ ! <span class="variable">$ret</span> -eq 0 ] &amp;&amp; <span class="built_in">echo</span> <span class="string">&quot;check running process failed, error <span class="variable">$ret</span>&quot;</span> &amp;&amp; <span class="built_in">return</span> <span class="variable">$ret</span></span><br><span class="line"></span><br><span class="line">        <span class="built_in">echo</span> <span class="string">&quot;running process <span class="variable">$running</span>&quot;</span></span><br><span class="line">        <span class="keyword">if</span> [ <span class="variable">$running</span> -le 0 ];<span class="keyword">then</span></span><br><span class="line">            <span class="built_in">return</span> 0</span><br><span class="line">        <span class="keyword">fi</span></span><br><span class="line">        sleep 1</span><br><span class="line">    <span class="keyword">done</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">start_tm=`date +%s%N`;</span><br><span class="line"><span class="keyword">for</span>((i=0;i&lt;pronum;i++))</span><br><span class="line"><span class="keyword">do</span></span><br><span class="line">    psql -d <span class="variable">$dbname</span> -f test.sql &amp;&gt;/dev/null &amp;</span><br><span class="line"><span class="keyword">done</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;waiting job finish ...&quot;</span></span><br><span class="line">wait_end</span><br><span class="line">end_tm=`date +%s%N`;</span><br><span class="line">use_tm=`<span class="built_in">echo</span> <span class="variable">$end_tm</span> <span class="variable">$start_tm</span> | awk <span class="string">&#x27;&#123; print ($1 - $2) / 1000000000&#125;&#x27;</span>`</span><br><span class="line">qps=`<span class="built_in">echo</span> <span class="string">&quot;(<span class="variable">$pronum</span> * 1050) / <span class="variable">$use_tm</span>&quot;</span>|bc`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;use time: <span class="variable">$use_tm</span> (s), qps: <span class="variable">$qps</span> (q/s)&quot;</span></span><br></pre></td></tr></table></figure>
 <p>test.sql 里面是1000行SELECT * from test8 where b = 1000</p>
 <p>jdbc程序：<a href="test2.tar.gz">test2.tar.gz</a><br>命令行：</p>
@@ -119,7 +120,7 @@
 <p>QD 在执行查询之前会给每个segment发送set gp_write_shared_snapshot=true，并且启动two phase commit。<br>代码如下：<br><img src="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png" alt="verify_shared_snapshot_ready"><br><img src="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png" alt="verify_shared_snapshot_ready"></p>
 <p>QD对应extended query，在ExecutorStart和cdbdisp_dispatchPlan时，会执行verify_shared_snapshot_ready，该函数会dispatch set gp_write_shared_snapshot=true到每个segment，并使用两阶段提交，拖慢整个执行性能。</p>
 <ul>
-<li><p><strong>问题1：shared snapshot是干什么用的？</strong><br>参考: <a href="/2020/12/28/Greenplum-shared-snapshot/index.html">Greenplum shared snapshot</a><br>lark:<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/anofwy">https://yuque.antfin-inc.com/olap_platform/pg/anofwy</a></p>
+<li><p><strong>问题1：shared snapshot是干什么用的？</strong><br>参考: <a href="/2020/12/28/Greenplum-shared-snapshot/index.html">Greenplum shared snapshot</a></p>
 </li>
 <li><p><strong>问题2：verify_shared_snapshot_ready的作用是什么？</strong></p>
 </li>
@@ -132,7 +133,7 @@
 <ul>
 <li><input checked disabled type="checkbox"> <strong>问题4：问什么extended query没有writer gang？</strong></li>
 </ul>
-<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1554898235110-1fe5b5e3-7d77-4e7c-98bb-2d994d67ff82.png#align=left&display=inline&height=397&name=image.png&originHeight=794&originWidth=1946&size=157693&status=done&width=973" alt="image.png"><br>从上面的代码可以看到，在assignGangs时，如果是extended query，则跳过writer gang的分配，只分配reader gang。<br><strong>对于cursor，同一个session可以同时执行多个cursor，由于writer gang只能有一个，所以所有的cursor只能在reader gang中执行，并且cursor是不会修改数据的，所以assignGangs没有分配writer gang。</strong></p>
+<p><img src="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/assignGangs.png" alt="image.png"><br>从上面的代码可以看到，在assignGangs时，如果是extended query，则跳过writer gang的分配，只分配reader gang。<br><strong>对于cursor，同一个session可以同时执行多个cursor，由于writer gang只能有一个，所以所有的cursor只能在reader gang中执行，并且cursor是不会修改数据的，所以assignGangs没有分配writer gang。</strong></p>
 <p>例子1 psql：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# BEGIN ;</span><br><span class="line">BEGIN</span><br><span class="line">postgres&#x3D;# DECLARE c1 CURSOR for select a from test8 where b &#x3D;10;</span><br><span class="line">DECLARE CURSOR</span><br><span class="line">postgres&#x3D;# DECLARE c2 CURSOR for select a from test8 where b &#x3D;11;</span><br><span class="line">DECLARE CURSOR</span><br><span class="line">postgres&#x3D;# FETCH c1;</span><br><span class="line"> a</span><br><span class="line">----</span><br><span class="line"> 10</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# FETCH c2;</span><br><span class="line"> a</span><br><span class="line">----</span><br><span class="line"> 11</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# CLOSE c1;</span><br><span class="line">CLOSE CURSOR</span><br><span class="line">postgres&#x3D;# close c2;</span><br><span class="line">CLOSE CURSOR</span><br><span class="line">postgres&#x3D;#</span><br></pre></td></tr></table></figure>
 <p>例子2 jdbc:<br>关于jdbc开启cursor的文档：<a target="_blank" rel="noopener" href="https://jdbc.postgresql.org/documentation/94/query.html#query-with-cursor">https://jdbc.postgresql.org/documentation/94/query.html#query-with-cursor</a></p>
@@ -141,21 +142,20 @@
 <ul>
 <li><input checked disabled type="checkbox"> <strong>问题4：为什么对于extended query，shared snapshot需要dump到file？</strong></li>
 </ul>
-<p>lark:<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/anofwy">https://yuque.antfin-inc.com/olap_platform/pg/anofwy</a></p>
+<p>参考: <a href="/2020/12/28/Greenplum-shared-snapshot/index.html">Greenplum shared snapshot</a></p>
 <h1 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h1><p>有两种解决方式：</p>
 <ul>
-<li><input checked disabled type="checkbox"> <strong>业务修改jdbc，让jdbc走simple query protocol</strong></li>
-</ul>
-<p>实现方式：<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/mk4kwd">https://yuque.antfin-inc.com/olap_platform/pg/mk4kwd</a></p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>修改gp内存</strong></li>
+<li><p><strong>业务修改jdbc，让jdbc走simple query protocol</strong><br>参考: <a href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/index.html">postgresql jdbc 走simple queryprotocol</a></p>
+</li>
+<li><p><strong>修改gp内存</strong></p>
+</li>
 </ul>
 <p>针对cursor和extended query中的cursor，依然走原来的流程，对于非cursor的extended query走simple query 流程。<br><strong>如何区分cursor和extended query中的cursor？</strong><br>simple query: declare cursor/fetch<br>extended query: 如果是cursor bind时，会有portal name，否则portal name为空</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/" data-id="ckj9bet0c00007zfy25ai1y0z" data-title="Greenplum jdbc qps 问题" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/" data-id="ckj9cq2uk00033efydz0ec0oq" data-title="Greenplum jdbc qps 问题" class="article-share-link">分享</a>
       
       
       

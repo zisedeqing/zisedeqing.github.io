@@ -100,23 +100,15 @@
     <div class="e-content article-entry" itemprop="articleBody">
       
         <p>默认情况下，jdbc的所有sql使用extended query protocol，不过pg的jdbc提供了使用simple query protocol方法。<br><strong>需要注意的是，使用simple query protocol后，jdbc的cursor功能将会失效，也就是无论setFetchSize设置为多大，jdbc都会一次把数据全部存到jdbc。不过resultset的滚动和update功能还是可以使用的。</strong></p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>connection级别</strong></li>
-</ul>
-<p>在链接字符串中添加preferQueryMode=simple参数，这样connection所有的sql执行使用的都是simple query protocol。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line"><span class="comment">// set preferQueryMode=simple</span></span><br><span class="line">Connection conn = DriverManager.getConnection(<span class="string">&quot;jdbc:postgresql://localhost:15432/postgres?preferQueryMode=simple&quot;</span>, <span class="string">&quot;postgres&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">Statement stmt = conn.createStatement();</span><br><span class="line">ResultSet rs = stmt.executeQuery(<span class="string">&quot;select * from test8 where b = 1&quot;</span>);</span><br><span class="line"><span class="keyword">while</span> (rs.next()) &#123;</span><br><span class="line">	ResultSetMetaData rsm = rs.getMetaData();</span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt;= rsm.getColumnCount(); i++) &#123;</span><br><span class="line">		System.out.println(rsm.getColumnName(i) + <span class="string">&quot;:&quot;</span> + rs.getString(i));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><input checked disabled type="checkbox"> <strong>sql级别</strong></li>
-</ul>
-<p>如果只针对某些sql使用simple query protocol，标准jdbc接口是无法实现的，只能通过pg的jdbc接口实现</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// preferQueryMode 不能为simpe或者extended,可以为extendedForPrepared或者extendedCacheEverything</span></span><br><span class="line">Connection conn = DriverManager.getConnection(<span class="string">&quot;jdbc:postgresql://localhost:15432/postgres?preferQueryMode=extendedForPrepared&quot;</span>, <span class="string">&quot;postgres&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 强制转换标准Statement为PgStatement</span></span><br><span class="line">PgStatement pgStmt = (PgStatement)conn.createStatement();</span><br><span class="line"><span class="keyword">if</span> (pgStmt.executeWithFlags(<span class="string">&quot;select * from test8 where b = 2&quot;</span>, QueryExecutor.QUERY_EXECUTE_AS_SIMPLE)) &#123;</span><br><span class="line">  ResultSet rs = pgStmt.getResultSet();</span><br><span class="line">  <span class="keyword">while</span> (rs.next()) &#123;</span><br><span class="line">	ResultSetMetaData rsm = rs.getMetaData();</span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt;= rsm.getColumnCount(); i++) &#123;</span><br><span class="line">		System.out.println(rsm.getColumnName(i) + <span class="string">&quot;:&quot;</span> + rs.getString(i));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
+        
+          <p class="article-more-link">
+            <a href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" data-id="ckj9cdhzv0000x2fygw6tfnwb" data-title="postgresql jdbc 走simple query protocol" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" data-id="ckj9cq2uy000y3efyf7wyc8ml" data-title="postgresql jdbc 走simple query protocol" class="article-share-link">分享</a>
       
       
       
@@ -157,53 +149,15 @@
     <div class="e-content article-entry" itemprop="articleBody">
       
         <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。<br>在docker里面做了一下测试，下面是测试脚本：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line">pronum=4</span><br><span class="line">dbname=postgres</span><br><span class="line"></span><br><span class="line">wait_end()</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">while</span> <span class="literal">true</span></span><br><span class="line">    <span class="keyword">do</span></span><br><span class="line">	<span class="built_in">jobs</span></span><br><span class="line">        running=`<span class="built_in">jobs</span>|wc -l`</span><br><span class="line">        ret=$?</span><br><span class="line">        [ ! <span class="variable">$ret</span> -eq 0 ] &amp;&amp; <span class="built_in">echo</span> <span class="string">&quot;check running process failed, error <span class="variable">$ret</span>&quot;</span> &amp;&amp; <span class="built_in">return</span> <span class="variable">$ret</span></span><br><span class="line"></span><br><span class="line">        <span class="built_in">echo</span> <span class="string">&quot;running process <span class="variable">$running</span>&quot;</span></span><br><span class="line">        <span class="keyword">if</span> [ <span class="variable">$running</span> -le 0 ];<span class="keyword">then</span></span><br><span class="line">            <span class="built_in">return</span> 0</span><br><span class="line">        <span class="keyword">fi</span></span><br><span class="line">        sleep 1</span><br><span class="line">    <span class="keyword">done</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">start_tm=`date +%s%N`;</span><br><span class="line"><span class="keyword">for</span>((i=0;i&lt;pronum;i++))</span><br><span class="line"><span class="keyword">do</span></span><br><span class="line">    psql -d <span class="variable">$dbname</span> -f test.sql &amp;&gt;/dev/null &amp;</span><br><span class="line"><span class="keyword">done</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;waiting job finish ...&quot;</span></span><br><span class="line">wait_end</span><br><span class="line">end_tm=`date +%s%N`;</span><br><span class="line">use_tm=`<span class="built_in">echo</span> <span class="variable">$end_tm</span> <span class="variable">$start_tm</span> | awk <span class="string">&#x27;&#123; print ($1 - $2) / 1000000000&#125;&#x27;</span>`</span><br><span class="line">qps=`<span class="built_in">echo</span> <span class="string">&quot;(<span class="variable">$pronum</span> * 1050) / <span class="variable">$use_tm</span>&quot;</span>|bc`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;use time: <span class="variable">$use_tm</span> (s), qps: <span class="variable">$qps</span> (q/s)&quot;</span></span><br></pre></td></tr></table></figure>
-<p>test.sql 里面是1000行SELECT * from test8 where b = 1000</p>
-<p>jdbc程序：<a href="test2.tar.gz">test2.tar.gz</a><br>命令行：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -cp .&#x2F;*:.&#x2F;test2-1.0-SNAPSHOT-jar-with-dependencies.jar MainEntry jdbc:postgresql:&#x2F;&#x2F;localhost:15432&#x2F;postgres postgres 111 &quot;select * from test8 where b &#x3D;1000&quot; 1000 4 true</span><br></pre></td></tr></table></figure>
-<p><strong>测试结果：</strong><br>psql:<br>use time: 6.08536 (s), qps: 690 (q/s)<br>jdbc:<br>Total run time: 33209 ms<br>QPS Tester: QPS = [120.44927579872925] querys/s</p>
-<h1 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h1><p>修改log级别为DEBUG5(set log_min_messages=DEBUG5)，输出更详细的log，比较psql与jdbc执行SELECT * from test8 where b = 1000的差异，对比发现使用jdbc时，有如下log：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">DEBUG5:  CdbDoCommand for command &#x3D; &#39;set gp_write_shared_snapshot&#x3D;true&#39;, needTwoPhase &#x3D; true</span><br><span class="line">DEBUG5:  dtmPreCommand going distributed (all gangs) for gid &#x3D; 1554712434-0000012220 (CdbDoCommand, detail &#x3D; &#39;set gp_write_shared_snapshot&#x3D;true&#39;)</span><br><span class="line">DEBUG3:  cdbdisp_dispatchCommand: set gp_write_shared_snapshot&#x3D;true (needTwoPhase &#x3D; true)</span><br><span class="line">DEBUG5:  mppTxnOptions DefaultXactIsoLevel &#x3D; READ COMMITTED, DefaultXactReadOnly &#x3D; false, XactIsoLevel &#x3D; READ COMMITTED, XactReadOnly &#x3D; false.</span><br><span class="line">DEBUG5:  mppTxnOptions txnOptions &#x3D; 0x3, needTwoPhase &#x3D; true, explicitBegin &#x3D; false, isoLevel &#x3D; READ COMMITTED, readOnly &#x3D; false.</span><br></pre></td></tr></table></figure>
-<p>QD 在执行查询之前会给每个segment发送set gp_write_shared_snapshot=true，并且启动two phase commit。<br>代码如下：<br><img src="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png" alt="verify_shared_snapshot_ready"><br><img src="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/verify_shared_snapshot_ready.png" alt="verify_shared_snapshot_ready"></p>
-<p>QD对应extended query，在ExecutorStart和cdbdisp_dispatchPlan时，会执行verify_shared_snapshot_ready，该函数会dispatch set gp_write_shared_snapshot=true到每个segment，并使用两阶段提交，拖慢整个执行性能。</p>
-<ul>
-<li><p><strong>问题1：shared snapshot是干什么用的？</strong><br>参考: <a href="/2020/12/28/Greenplum-shared-snapshot/index.html">Greenplum shared snapshot</a><br>lark:<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/anofwy">https://yuque.antfin-inc.com/olap_platform/pg/anofwy</a></p>
-</li>
-<li><p><strong>问题2：verify_shared_snapshot_ready的作用是什么？</strong></p>
-</li>
-</ul>
-<p>根据注释看，该函数的主要作用是在segment上启动一个writer gang，并且生成shared snapshot。</p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>问题3：为什么extended query 会比simple query多走这一步？</strong></li>
-</ul>
-<p>根据代码和注释了解，extended query在执行的时候，是没有writer gang的，所有的执行操作都是在reader gang中，但是reader gang也需要snapshot，所以需要执行此操作。</p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>问题4：问什么extended query没有writer gang？</strong></li>
-</ul>
-<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2019/png/147211/1554898235110-1fe5b5e3-7d77-4e7c-98bb-2d994d67ff82.png#align=left&display=inline&height=397&name=image.png&originHeight=794&originWidth=1946&size=157693&status=done&width=973" alt="image.png"><br>从上面的代码可以看到，在assignGangs时，如果是extended query，则跳过writer gang的分配，只分配reader gang。<br><strong>对于cursor，同一个session可以同时执行多个cursor，由于writer gang只能有一个，所以所有的cursor只能在reader gang中执行，并且cursor是不会修改数据的，所以assignGangs没有分配writer gang。</strong></p>
-<p>例子1 psql：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# BEGIN ;</span><br><span class="line">BEGIN</span><br><span class="line">postgres&#x3D;# DECLARE c1 CURSOR for select a from test8 where b &#x3D;10;</span><br><span class="line">DECLARE CURSOR</span><br><span class="line">postgres&#x3D;# DECLARE c2 CURSOR for select a from test8 where b &#x3D;11;</span><br><span class="line">DECLARE CURSOR</span><br><span class="line">postgres&#x3D;# FETCH c1;</span><br><span class="line"> a</span><br><span class="line">----</span><br><span class="line"> 10</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# FETCH c2;</span><br><span class="line"> a</span><br><span class="line">----</span><br><span class="line"> 11</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# CLOSE c1;</span><br><span class="line">CLOSE CURSOR</span><br><span class="line">postgres&#x3D;# close c2;</span><br><span class="line">CLOSE CURSOR</span><br><span class="line">postgres&#x3D;#</span><br></pre></td></tr></table></figure>
-<p>例子2 jdbc:<br>关于jdbc开启cursor的文档：<a target="_blank" rel="noopener" href="https://jdbc.postgresql.org/documentation/94/query.html#query-with-cursor">https://jdbc.postgresql.org/documentation/94/query.html#query-with-cursor</a></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> Connection conn = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">static</span> Statement stmt = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String args[])</span> <span class="keyword">throws</span> ClassNotFoundException, SQLException </span>&#123;</span><br><span class="line">        Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line">        conn = DriverManager.getConnection(<span class="string">&quot;jdbc:postgresql://localhost:15432/postgres&quot;</span>, <span class="string">&quot;postgres&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">        conn.setAutoCommit(<span class="keyword">false</span>);</span><br><span class="line"></span><br><span class="line">        Statement st1 = conn.createStatement();</span><br><span class="line">        Statement st2 = conn.createStatement();</span><br><span class="line">        st1.setFetchSize(<span class="number">1</span>);</span><br><span class="line">        st2.setFetchSize(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">        ResultSet rs1 = st1.executeQuery(<span class="string">&quot;select a from test8 where b = 1&quot;</span>);</span><br><span class="line">        ResultSet rs2 = st2.executeQuery(<span class="string">&quot;select b from test8 where b = 11&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (rs1.next()) &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;fetch rs1: &quot;</span> + rs1.getString(<span class="number">1</span>));</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> (rs2.next()) &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;fetch rs2: &quot;</span> + rs2.getString(<span class="number">1</span>));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (rs1.next()) &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;fetch rs1: &quot;</span> + rs1.getString(<span class="number">1</span>));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (rs2.next()) &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;fetch rs2: &quot;</span> + rs2.getString(<span class="number">1</span>));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        rs1.close();</span><br><span class="line">        rs2.close();</span><br><span class="line"></span><br><span class="line">        st1.close();</span><br><span class="line">        st2.close();</span><br><span class="line">        conn.close();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><input checked disabled type="checkbox"> <strong>问题4：为什么对于extended query，shared snapshot需要dump到file？</strong></li>
-</ul>
-<p>lark:<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/anofwy">https://yuque.antfin-inc.com/olap_platform/pg/anofwy</a></p>
-<h1 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h1><p>有两种解决方式：</p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>业务修改jdbc，让jdbc走simple query protocol</strong></li>
-</ul>
-<p>实现方式：<a target="_blank" rel="noopener" href="https://yuque.antfin-inc.com/olap_platform/pg/mk4kwd">https://yuque.antfin-inc.com/olap_platform/pg/mk4kwd</a></p>
-<ul>
-<li><input checked disabled type="checkbox"> <strong>修改gp内存</strong></li>
-</ul>
-<p>针对cursor和extended query中的cursor，依然走原来的流程，对于非cursor的extended query走simple query 流程。<br><strong>如何区分cursor和extended query中的cursor？</strong><br>simple query: declare cursor/fetch<br>extended query: 如果是cursor bind时，会有portal name，否则portal name为空</p>
-
+        
+          <p class="article-more-link">
+            <a href="/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/" data-id="ckj9bet0c00007zfy25ai1y0z" data-title="Greenplum jdbc qps 问题" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/" data-id="ckj9cq2uk00033efydz0ec0oq" data-title="Greenplum jdbc qps 问题" class="article-share-link">分享</a>
       
       
       
@@ -252,7 +206,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/" data-id="ckj8mbksc000003fy3d9o1nb8" data-title="Greenplum Fts实现" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-Fts%E5%AE%9E%E7%8E%B0/" data-id="ckj9cq2uh00013efy7oine3mq" data-title="Greenplum Fts实现" class="article-share-link">分享</a>
       
       
       
@@ -301,7 +255,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-shared-snapshot/" data-id="ckj8lx1jy0000vzfy1hh200an" data-title="Greenplum shared snapshot" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-shared-snapshot/" data-id="ckj9cq2uo00063efycdzmdnlp" data-title="Greenplum shared snapshot" class="article-share-link">分享</a>
       
       
       
@@ -350,7 +304,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" data-id="ckj8li7y70000qlfy6pgug6xz" data-title="Greenplum 列存原理分析" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-%E5%88%97%E5%AD%98%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" data-id="ckj9cq2v000123efy1gg7ao1i" data-title="Greenplum 列存原理分析" class="article-share-link">分享</a>
       
       
       
@@ -399,7 +353,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/" data-id="ckj8jmxd500050bfyhd1i80iz" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/Greenplum-6-0-HA/" data-id="ckj9cq2uz000z3efycxq7brpy" data-title="Greenplum 6.0 HA" class="article-share-link">分享</a>
       
       
       
@@ -448,7 +402,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://zisedeqing.github.io/2020/12/28/hello-world/" data-id="ckj8jmxcv00010bfyh59xgkqm" data-title="Hello World" class="article-share-link">分享</a>
+      <a data-url="https://zisedeqing.github.io/2020/12/28/hello-world/" data-id="ckj9cq2up00073efybhe767dm" data-title="Hello World" class="article-share-link">分享</a>
       
       
       
