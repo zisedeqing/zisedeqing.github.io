@@ -3,6 +3,62 @@
 
 
     <url>
+        <loc>https://zisedeqing.github.io/tags/%E7%A3%81%E7%9B%98/</loc>
+        <lastmod>2020-12-29T08:16:51.274Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/IO/</loc>
+        <lastmod>2020-12-29T08:16:51.274Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/greenplum/</loc>
+        <lastmod>2020-12-29T08:16:51.274Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/postgresql/</loc>
+        <lastmod>2020-12-29T07:57:43.463Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/jdbc/</loc>
+        <lastmod>2020-12-29T07:57:43.463Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/distributed-transaction/</loc>
+        <lastmod>2020-12-29T07:51:43.834Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/xid/</loc>
+        <lastmod>2020-12-29T07:46:51.664Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/snapshot/</loc>
+        <lastmod>2020-12-29T07:36:59.563Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
         <loc>https://zisedeqing.github.io/tags/64%E4%BD%8D/</loc>
         <lastmod>2020-12-29T06:59:33.634Z</lastmod>
         <changefreq>weekly</changefreq>
@@ -11,13 +67,6 @@
 
     <url>
         <loc>https://zisedeqing.github.io/tags/gxid/</loc>
-        <lastmod>2020-12-29T06:59:33.634Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
-        <loc>https://zisedeqing.github.io/tags/greenplum/</loc>
         <lastmod>2020-12-29T06:59:33.634Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.2</priority>
@@ -38,21 +87,7 @@
     </url>
 
     <url>
-        <loc>https://zisedeqing.github.io/tags/jdbc/</loc>
-        <lastmod>2020-12-29T02:07:53.161Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
         <loc>https://zisedeqing.github.io/tags/simple/</loc>
-        <lastmod>2020-12-29T02:07:50.659Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
-        <loc>https://zisedeqing.github.io/tags/postgresql/</loc>
         <lastmod>2020-12-29T02:07:50.659Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.2</priority>
@@ -81,13 +116,6 @@
 
     <url>
         <loc>https://zisedeqing.github.io/tags/aocs/</loc>
-        <lastmod>2020-12-29T01:32:53.309Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
-        <loc>https://zisedeqing.github.io/tags/snapshot/</loc>
         <lastmod>2020-12-29T01:32:53.309Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.2</priority>

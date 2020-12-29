@@ -177,6 +177,48 @@
       </tags>
   </entry>
   <entry>
+    <title>Greenplum GetSnapshot</title>
+    <url>/2020/12/29/Greenplum-GetSnapshot/</url>
+    <content><![CDATA[<h1 id="GetSnapshotData部分流程"><a href="#GetSnapshotData部分流程" class="headerlink" title="GetSnapshotData部分流程"></a>GetSnapshotData部分流程</h1><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (snapshot-&gt;xip == <span class="literal">NULL</span>)</span><br><span class="line">    init snapshot-&gt;xip;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (snapshot-&gt;subxip == <span class="literal">NULL</span>)</span><br><span class="line">    init snapshot-&gt;subxip;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (distributedsnapshot-&gt;inProgressXidArray == <span class="literal">NULL</span>)</span><br><span class="line">    init distributedsnapshot</span><br><span class="line">    <span class="built_in">malloc</span> distributedsnapshot-&gt;inProgressXidArray</span><br><span class="line">    </span><br><span class="line"><span class="keyword">if</span> (in QE_READ <span class="keyword">or</span> QE_ENTRY_DB_SINGLETON)</span><br><span class="line">    get snapshot from shared snapshot;</span><br><span class="line"></span><br><span class="line">LWLockAcquire(ProcArrayLock, LW_SHARED);</span><br><span class="line"></span><br><span class="line">xmax = ShmemVariableCache-&gt;latestCompletedXid + <span class="number">1</span>;</span><br><span class="line">globalxmin = xmin = xmax;</span><br><span class="line"></span><br><span class="line">foreach proc</span><br><span class="line">&#123;</span><br><span class="line">	globalxmin = min(globalxmin, pgxact-&gt;xmin);</span><br><span class="line">	xmin = min(xmin, pgxact-&gt;xid);</span><br><span class="line">    </span><br><span class="line">    add to runing xid <span class="built_in">array</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">MyPgXact-&gt;xmin = TransactionXmin = xmin;</span><br><span class="line">LWLockRelease(ProcArrayLock);</span><br><span class="line"></span><br><span class="line">globalxmin = min(globalxmin, xmin);</span><br></pre></td></tr></table></figure>
+<a id="more"></a>
+
+
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PGXACT</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	TransactionId xid;			<span class="comment">/* id of top-level transaction currently being</span></span><br><span class="line"><span class="comment">								 * executed by this proc, if running and XID</span></span><br><span class="line"><span class="comment">								 * is assigned; else InvalidTransactionId */</span></span><br><span class="line"></span><br><span class="line">	TransactionId xmin;			<span class="comment">/* minimal running XID as it was when we were</span></span><br><span class="line"><span class="comment">								 * starting our xact, excluding LAZY VACUUM:</span></span><br><span class="line"><span class="comment">								 * vacuum must not remove tuples deleted by</span></span><br><span class="line"><span class="comment">								 * xid &gt;= xmin ! */</span></span><br><span class="line"></span><br><span class="line">	uint8		vacuumFlags;	<span class="comment">/* vacuum-related flags, see above */</span></span><br><span class="line">	<span class="keyword">bool</span>		overflowed;</span><br><span class="line">	<span class="keyword">bool</span>		delayChkpt;		<span class="comment">/* true if this proc delays checkpoint start;</span></span><br><span class="line"><span class="comment">								 * previously called InCommit */</span></span><br><span class="line"></span><br><span class="line">	uint8		nxids;</span><br><span class="line">&#125; PGXACT;</span><br></pre></td></tr></table></figure>
+<p>PGXACT-&gt;xid:<br>当前backend的xid，如果有正在运行的事务，则为该事务的xid，否则就为0<br>PGXACT-&gt;xmin:<br>当前backend中的事务启动后，系统的xmin，这个xmin是有可能是一个过去式的，仅仅表示当前事务启动之后的xmin。这里的xmin是说小于该值的事务都是已经结束了的事务。</p>
+<p>snapshot要确定3个值：</p>
+<ol>
+<li>xmin</li>
+</ol>
+<p>&lt; xmin的事务修改的数据，对我而言一定是可见的</p>
+<ol start="2">
+<li>xmax</li>
+</ol>
+<blockquote>
+<p>= xmax的事务修改的数据，对我一定是不可见的<br>xmax = ShmemVariableCache-&gt;latestCompletedXid + 1;</p>
+</blockquote>
+<p>xmax的值是当前时间点最近提交的一个事务xid + 1。</p>
+<ul>
+<li>比xmax小的事务，不确定是否提交了，需要运行时判断</li>
+<li>比xmax大的事务，一定不可见，一定为提交</li>
+</ul>
+<ol start="3">
+<li>xips</li>
+</ol>
+<p>几个session级别的全局变量：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">TransactionXmin：</span><br><span class="line">RecentXmin：</span><br><span class="line">	生成snapshot时的xmin，用来实现某些ddl的。对于那些需要创建新的heap，然后交换物理文件的ddl，</span><br><span class="line">    该值用来确定新的heap的frozenxid</span><br><span class="line">RecentGlobalXmin：</span><br><span class="line">	当前事务启动后的global xmin, 会考虑vacuum_defer_cleanup_age，replication slot等</span><br><span class="line">    heap_page_prune_opt时，用来vacuum 用户表的</span><br><span class="line">RecentGlobalDataXmin：</span><br><span class="line">	与RecentGlobalXmin基本一直，不同之处是会排除replication slot对于catalog的问题</span><br><span class="line">    heap_page_prune_opt时，用来vacuum catalog表的</span><br></pre></td></tr></table></figure>
+<p>globalxmin 与xmin：<br>global xmin是所有session中最小的xmin，而xmin是当前session中，global xmin一般用来实现vacuum的，防止过早的清理tuple。globalxmin的计算与GetOldestXmin中的实现逻辑基本是一样的。</p>
+]]></content>
+      <categories>
+        <category>greenplum6.0</category>
+        <category>transaction</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>distributed transaction</tag>
+        <tag>snapshot</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Greenplum jdbc qps 问题</title>
     <url>/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/</url>
     <content><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。<br>在docker里面做了一下测试，下面是测试脚本：</p>
@@ -258,6 +300,308 @@
       <tags>
         <tag>greenplum</tag>
         <tag>snapshot</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Greenplum wait xid问题</title>
+    <url>/2020/12/29/Greenplum-wait-xid%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[<h1 id="重现步骤"><a href="#重现步骤" class="headerlink" title="重现步骤"></a>重现步骤</h1><p>数据准备</p>
+<a id="more"></a>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">postgres<span class="operator">=</span># <span class="keyword">create</span> <span class="keyword">table</span> t2 (a <span class="type">int</span>, b <span class="type">int</span>);</span><br><span class="line">NOTICE:  <span class="keyword">Table</span> doesn<span class="string">&#x27;t have &#x27;</span>DISTRIBUTED <span class="keyword">BY</span><span class="string">&#x27; clause -- Using column named &#x27;</span>a<span class="string">&#x27; as the Greenplum Database data distribution key for this table.</span></span><br><span class="line"><span class="string">HINT:  The &#x27;</span>DISTRIBUTED <span class="keyword">BY</span><span class="string">&#x27; clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.</span></span><br><span class="line"><span class="string">CREATE TABLE</span></span><br><span class="line"><span class="string">postgres=# insert into t2 values (1,1),(2,2),(3,3),(4,4),(5,5);</span></span><br><span class="line"><span class="string">INSERT 0 5</span></span><br><span class="line"><span class="string">postgres=# select gp_segment_id, * from t2;</span></span><br><span class="line"><span class="string"> gp_segment_id | a | b</span></span><br><span class="line"><span class="string">---------------+---+---</span></span><br><span class="line"><span class="string">             0 | 2 | 2</span></span><br><span class="line"><span class="string">             0 | 3 | 3</span></span><br><span class="line"><span class="string">             0 | 4 | 4</span></span><br><span class="line"><span class="string">             1 | 1 | 1</span></span><br><span class="line"><span class="string">             2 | 5 | 5</span></span><br><span class="line"><span class="string">(5 rows)</span></span><br></pre></td></tr></table></figure>
+<p>gdb shell</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">针对db session1的qd process，做断点</span><br><span class="line">$gdb -p 159082</span><br><span class="line">(gdb) b notifyCommittedDtxTransaction</span><br><span class="line">Breakpoint 1 at 0xb4b340: file cdbtm.c, line 326.</span><br></pre></td></tr></table></figure>
+<p>db session 1</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres&#x3D;# update t2 set b &#x3D;b+1 where  gp_segment_id&#x3D;0; &lt;-- hang</span><br></pre></td></tr></table></figure>
+<p>在gdb shell中</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">(gdb) finish</span><br><span class="line">Run till exit from #0  notifyCommittedDtxTransaction () at cdbtm.c:326</span><br><span class="line">CommitTransaction () at xact.c:2900</span><br><span class="line">2900      ClearTransactionState(latestXid);</span><br></pre></td></tr></table></figure>
+<p>db session2</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres&#x3D;# update t2 set b &#x3D;b+1 where  gp_segment_id&#x3D;0;</span><br><span class="line">UPDATE 3</span><br></pre></td></tr></table></figure>
+<p>db session3</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres&#x3D;# select * from t2;</span><br><span class="line"> a | b</span><br><span class="line">---+---</span><br><span class="line"> 5 | 5</span><br><span class="line"> 1 | 1</span><br><span class="line"> 2 | 2</span><br><span class="line"> 3 | 3</span><br><span class="line"> 4 | 4</span><br><span class="line"> 2 | 4</span><br><span class="line"> 3 | 5</span><br><span class="line"> 4 | 6</span><br><span class="line">(8 rows)</span><br></pre></td></tr></table></figure>
+<p>在gdb shell中</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">(gdb) quit</span><br><span class="line">A debugging session is active.</span><br></pre></td></tr></table></figure>
+<p>db session3</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres&#x3D;# select * from t2;</span><br><span class="line"> a | b</span><br><span class="line">---+---</span><br><span class="line"> 1 | 1</span><br><span class="line"> 5 | 5</span><br><span class="line"> 2 | 4</span><br><span class="line"> 3 | 5</span><br><span class="line"> 4 | 6</span><br><span class="line">(5 rows)</span><br></pre></td></tr></table></figure>
+<h1 id="社区版最新修改"><a href="#社区版最新修改" class="headerlink" title="社区版最新修改"></a>社区版最新修改</h1><p>MR: <a href="https://github.com/greenplum-db/gpdb/pull/9710">https://github.com/greenplum-db/gpdb/pull/9710</a></p>
+]]></content>
+      <categories>
+        <category>greenplum6.0</category>
+        <category>transaction</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>distributed transaction</tag>
+        <tag>xid</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Greenplum 写入磁盘IO异常高的问题分析</title>
+    <url>/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/</url>
+    <content><![CDATA[<h1 id="gp7-写入高问题分析"><a href="#gp7-写入高问题分析" class="headerlink" title="gp7 写入高问题分析"></a>gp7 写入高问题分析</h1><h1 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h1><p>对比gp7单master 与pg9.6 测试发现一个问题：gp7的磁盘写入量是pg9.6的好几倍，具体表现为：iostat时发现gp7的每秒写入量是pg9.6的好几倍，还有就是查看gplog发现在10分钟的测试期间gp做了2次由于xlog触发的checkpoint，而pg未触发。<br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/io-write.png" alt="io write"><br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/io-utils.png" alt="io utils"></p>
+<p>根据测试结果，gp7的tpmc比pg9.6要小3倍，按理说，gp7的io写入量应该比pg9.6小才对，但是从系统监控看却不是这样的，需要具体分析。</p>
+<p>gpdb 编译参数：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">.&#x2F;configure --prefix&#x3D;&#x2F;home&#x2F;xxx&#x2F;gpdb-install --with-openssl --with-ldap --with-libxml --with-gssapi --enable-debug --disable-orca --disable-oss-ext --with-blocksize&#x3D;8 --with-wal-blocksize&#x3D;8 CFLAGS&#x3D;&quot;-O2 -DIMPLEMENT_ASYNC_COMMIT&quot;</span><br></pre></td></tr></table></figure>
+<h1 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h1><h2 id="问题1：为何gp7的backend会有比较大量的io？"><a href="#问题1：为何gp7的backend会有比较大量的io？" class="headerlink" title="问题1：为何gp7的backend会有比较大量的io？"></a>问题1：为何gp7的backend会有比较大量的io？</h2><p>使用strace和lsof监控 gp7和pg9.6的数据写入信息，并比较，发现pg9.6时数据基本都wal writer 进程写入的，而backend进程只有少量数据写入，但是gp7的wal writer和backend都会有大量数据写入操作，具体分析：<br>测试命令：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">strace -tt -T -f -e trace&#x3D;write -p 89761</span><br><span class="line">lsof -p pid1,pid2</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/strace.png" alt="strace"></p>
+<p>wal writer:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres  58764 3u      REG     259,2   67108864 170265362 &#x2F;home&#x2F;admin&#x2F;gp_data&#x2F;master&#x2F;gpseg-1&#x2F;pg_xlog&#x2F;00000001000000820000000D</span><br></pre></td></tr></table></figure>
+<p><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/strace2.png" alt="strace"><br>在运行的时候wal writer都是针对pg_xlog/00000001000000820000000D的写入</p>
+<p>backend：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">postgres 198841 126u      REG     259,2   67108864 170265362 &#x2F;home&#x2F;admin&#x2F;gp_data&#x2F;master&#x2F;gpseg-1&#x2F;pg_xlog&#x2F;00000001000000820000000D</span><br></pre></td></tr></table></figure>
+<p>backend的write操作有2种，一是针对数据文件的写入，量比较少，是有一种是针对xlog的写入，量很大，是数据文件写入的7倍左右：<br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/strace-backend.png" alt="strace backend"></p>
+<p><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/strace-backend2.png" alt="strace backend"></p>
+<p>分析代码发现2个问题：</p>
+<ol>
+<li>gp添加了IMPLEMENT_ASYNC_COMMIT编译宏，默认没有开启异步提交</li>
+<li>gp默认wal block size为32k，pg为8k</li>
+</ol>
+<p>pg9.6：<br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/pg9.6.png" alt="image.png"></p>
+<p>重启编译gp7，开启异步提交并把wal block size改为8后，gp7 backend的写入与pg9.6一致了，但是gp7的wal 整体写入量还是比pg9.6大，需要进一步分析。</p>
+<h2 id="问题2：为何gp7的wal-log会比pg9-6的大"><a href="#问题2：为何gp7的wal-log会比pg9-6的大" class="headerlink" title="问题2：为何gp7的wal log会比pg9.6的大"></a>问题2：为何gp7的wal log会比pg9.6的大</h2><p>重新编译gp7和pg9.6开启wal_debug功能，并且在运行的时候打开wal_debug功能，分析运行时产生的wal log发现：<br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/xlog-type.png" alt="xlog type"><br>gp7 比pg9.6多记录了一直类型的xlog：XLOG/FPI_FOR_HINT， 该日志是在tuple的hints发生变化时记录的，分析代码发现2个触发条件：</p>
+<ol>
+<li>controlfile中的Data page checksum version &gt; 0</li>
+<li>guc 参数wal_log_hints开启</li>
+</ol>
+<p>对比gp7和gp9.6 发现 gp7的 Data page checksum version 为1，而pg9.6默认为0。 查看gpinitsystem是的log发现：<br><img src="/2020/12/29/Greenplum-%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98IO%E5%BC%82%E5%B8%B8%E9%AB%98%E7%9A%84%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/initsystem.png" alt="image.png"><br>gp在初始化数据库时默认开启的page check sum功能。</p>
+<p>重新初始化数据库并且关闭page checksum后，gp7 io有所降低，但是依然比pg9.6高很多。对gp7和pg9.6分别执行如下操作：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">checkpoint;</span><br><span class="line">select pg_switch_xlog();</span><br><span class="line">select pg_current_xlog_insert_location();</span><br><span class="line"></span><br><span class="line">tpcc测试64并发跑200s</span><br><span class="line">select pg_current_xlog_insert_location();</span><br><span class="line"></span><br><span class="line">计算90s产生的日志量，并使用pg_xlogdump工具分析这些日志</span><br></pre></td></tr></table></figure>
+
+<p>测试结果分别如下：<br>gp7 master:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">master_only&#x3D;# select pg_switch_xlog();</span><br><span class="line"> pg_switch_xlog</span><br><span class="line">----------------</span><br><span class="line"> 87&#x2F;DFFEBD08</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">Time: 0.643 ms</span><br><span class="line">master_only&#x3D;# select pg_current_xlog_insert_location();</span><br><span class="line"> pg_current_xlog_insert_location</span><br><span class="line">---------------------------------</span><br><span class="line"> 87&#x2F;E0000028</span><br><span class="line">(1 row)</span><br><span class="line">.&#x2F;tpcc.lua --pgsql-host&#x3D;127.0.0.1 --pgsql-port&#x3D;35432 --pgsql-user&#x3D;benchmarksql --pgsql-db&#x3D;master_only     --threads&#x3D;64 --tables&#x3D;1 --scale&#x3D;1000 --trx_level&#x3D;RC --db-ps-mode&#x3D;auto --db-driver&#x3D;pgsql --time&#x3D;200     --report-interval&#x3D;10 run</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">开始的xlog: 0000000100000087000000E0</span><br><span class="line"></span><br><span class="line">master_only&#x3D;# select pg_current_xlog_insert_location();</span><br><span class="line"> pg_current_xlog_insert_location</span><br><span class="line">---------------------------------</span><br><span class="line"> 95&#x2F;E46502E8</span><br><span class="line"></span><br><span class="line">结束的xlog： 0000000100000095000000E4</span><br><span class="line">xlog量：57414MB</span><br><span class="line">transactions:                        1935328 (9667.02 per sec.)</span><br><span class="line"></span><br><span class="line">$pg_xlogdump -z --stats&#x3D;record 0000000100000087000000E0 0000000100000095000000E4</span><br><span class="line">Type                                           N      (%)          Record size      (%)            FPI count      (%)             FPI size      (%)        Combined size      (%)</span><br><span class="line">----                                           -      ---          -----------      ---            ---------      ---             --------      ---        -------------      ---</span><br><span class="line">XLOG&#x2F;CHECKPOINT_ONLINE                         1 (  0.00)                  116 (  0.00)                    0 (  0.00)                    0 (  0.00)                  116 (  0.00)</span><br><span class="line">Transaction&#x2F;COMMIT                       1757494 (  2.06)             70299760 (  2.63)                    0 (  0.00)                    0 (  0.00)             70299760 (  0.13)</span><br><span class="line">Transaction&#x2F;ABORT                           8422 (  0.01)               336880 (  0.01)                    0 (  0.00)                    0 (  0.00)               336880 (  0.00)</span><br><span class="line">CLOG&#x2F;ZEROPAGE                                 54 (  0.00)                 1512 (  0.00)                    0 (  0.00)                    0 (  0.00)                 1512 (  0.00)</span><br><span class="line">Heap2&#x2F;CLEAN                             11772482 ( 13.79)            376719424 ( 14.12)               986271 ( 13.06)           7200248456 ( 13.49)           7576967880 ( 13.52)</span><br><span class="line">Heap2&#x2F;LOCK_UPDATED                          2290 (  0.00)                73280 (  0.00)                    0 (  0.00)                    0 (  0.00)                73280 (  0.00)</span><br><span class="line">Heap&#x2F;INSERT                             10789086 ( 12.64)            291305322 ( 10.92)                   87 (  0.00)               376976 (  0.00)            291682298 (  0.52)</span><br><span class="line">Heap&#x2F;DELETE                               842732 (  0.99)             26967424 (  1.01)                30278 (  0.40)            223418376 (  0.42)            250385800 (  0.45)</span><br><span class="line">Heap&#x2F;UPDATE                              2289529 (  2.68)             87002102 (  3.26)                   10 (  0.00)                48032 (  0.00)             87050134 (  0.16)</span><br><span class="line">Heap&#x2F;UPDATE_LOCK                         2318276 (  2.72)             74184832 (  2.78)               131288 (  1.74)           1060088220 (  1.99)           1134273052 (  2.02)</span><br><span class="line">Heap&#x2F;HOT_UPDATE                         19560240 ( 22.92)            743289120 ( 27.85)               355980 (  4.71)           2794941056 (  5.24)           3538230176 (  6.31)</span><br><span class="line">Heap&#x2F;LOCK                               10081592 ( 11.81)            322610944 ( 12.09)              4089915 ( 54.15)          31260818368 ( 58.58)          31583429312 ( 56.37)</span><br><span class="line">Heap&#x2F;INSERT+INIT                          129354 (  0.15)              3492558 (  0.13)                    0 (  0.00)                    0 (  0.00)              3492558 (  0.01)</span><br><span class="line">Heap&#x2F;UPDATE+INIT                           28747 (  0.03)              1092386 (  0.04)                    0 (  0.00)                    0 (  0.00)              1092386 (  0.00)</span><br><span class="line">Btree&#x2F;INSERT_LEAF                       25515164 ( 29.90)            663394264 ( 24.86)              1910997 ( 25.30)          10574858940 ( 19.82)          11238253204 ( 20.06)</span><br><span class="line">Btree&#x2F;INSERT_UPPER                        117204 (  0.14)              3047304 (  0.11)                17182 (  0.23)             92099280 (  0.17)             95146584 (  0.17)</span><br><span class="line">Btree&#x2F;SPLIT_L                              23978 (  0.03)               767296 (  0.03)                 6179 (  0.08)             34688400 (  0.07)             35455696 (  0.06)</span><br><span class="line">Btree&#x2F;SPLIT_R                              93451 (  0.11)              2990432 (  0.11)                24384 (  0.32)            111544716 (  0.21)            114535148 (  0.20)</span><br><span class="line">Btree&#x2F;DELETE                               19071 (  0.02)               940340 (  0.04)                 1031 (  0.01)              8269024 (  0.02)              9209364 (  0.02)</span><br><span class="line">                                        --------                      --------                      --------                      --------                      --------</span><br><span class="line">Total                                   85349167                    2668515296 [4.76%]               7553602 [8.85%]           53361399844 [95.24%]          56029915140 [100%]</span><br></pre></td></tr></table></figure>
+
+<p>pg9.6:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">tpcc&#x3D;# select pg_switch_xlog();</span><br><span class="line"> pg_switch_xlog</span><br><span class="line">----------------</span><br><span class="line"> F3&#x2F;E2242308</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">tpcc&#x3D;# select pg_current_xlog_insert_location();</span><br><span class="line"> pg_current_xlog_insert_location</span><br><span class="line">---------------------------------</span><br><span class="line"> F3&#x2F;E3000028</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">开始的xlog: 00000001000000F3000000E3</span><br><span class="line"></span><br><span class="line">.&#x2F;tpcc.lua --pgsql-host&#x3D;127.0.0.1 --pgsql-port&#x3D;11000 --pgsql-user&#x3D;benchmarksql --pgsql-db&#x3D;tpcc     --threads&#x3D;64 --tables&#x3D;1 --scale&#x3D;100 --trx_level&#x3D;RC --db-ps-mode&#x3D;auto --db-driver&#x3D;pgsql --time&#x3D;200     --report-interval&#x3D;20 run</span><br><span class="line"></span><br><span class="line">tpcc&#x3D;# select pg_current_xlog_insert_location();</span><br><span class="line"> pg_current_xlog_insert_location</span><br><span class="line">---------------------------------</span><br><span class="line"> F9&#x2F;9BC4DB20</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">结束的xlog: 00000001000000F90000009B</span><br><span class="line">写入的xlog量：23436 MB</span><br><span class="line">transactions:                        3711540 (18553.94 per sec.)</span><br><span class="line"></span><br><span class="line">$&#x2F;home&#x2F;shanghao.zxb&#x2F;pg-install-9.6&#x2F;bin&#x2F;pg_xlogdump -z --stats&#x3D;record 00000001000000F3000000E3 00000001000000F90000009B</span><br><span class="line">^@Type                                           N      (%)          Record size      (%)            FPI count      (%)             FPI size      (%)        Combined size      (%)</span><br><span class="line">----                                           -      ---          -----------      ---            ---------      ---             --------      ---        -------------      ---</span><br><span class="line">XLOG&#x2F;CHECKPOINT_ONLINE                         1 (  0.00)                  104 (  0.00)                    0 (  0.00)                    0 (  0.00)                  104 (  0.00)</span><br><span class="line">Transaction&#x2F;COMMIT                       3409769 (  1.99)            109112608 (  2.04)                    0 (  0.00)                    0 (  0.00)            109112608 (  0.65)</span><br><span class="line">Transaction&#x2F;ABORT                          16378 (  0.01)               524096 (  0.01)                    0 (  0.00)                    0 (  0.00)               524096 (  0.00)</span><br><span class="line">CLOG&#x2F;ZEROPAGE                                105 (  0.00)                 2940 (  0.00)                    0 (  0.00)                    0 (  0.00)                 2940 (  0.00)</span><br><span class="line">MultiXact&#x2F;CREATE_ID                          203 (  0.00)                10604 (  0.00)                    0 (  0.00)                    0 (  0.00)                10604 (  0.00)</span><br><span class="line">Heap2&#x2F;CLEAN                             22999350 ( 13.40)            735979200 ( 13.78)               362013 ( 21.09)           2624962084 ( 22.88)           3360941284 ( 19.99)</span><br><span class="line">Heap2&#x2F;LOCK_UPDATED                         68615 (  0.04)              2195680 (  0.04)                    0 (  0.00)                    0 (  0.00)              2195680 (  0.01)</span><br><span class="line">Heap&#x2F;INSERT                             20933838 ( 12.20)            565213626 ( 10.58)                  110 (  0.01)               588420 (  0.01)            565802046 (  3.37)</span><br><span class="line">Heap&#x2F;DELETE                              1623527 (  0.95)             51952864 (  0.97)                 7081 (  0.41)             54214904 (  0.47)            106167768 (  0.63)</span><br><span class="line">Heap&#x2F;UPDATE                              4739123 (  2.76)            180086674 (  3.37)                   36 (  0.00)               221620 (  0.00)            180308294 (  1.07)</span><br><span class="line">Heap&#x2F;UPDATE_LOCK                         4797586 (  2.79)            153522752 (  2.87)               113312 (  6.60)            922353016 (  8.04)           1075875768 (  6.40)</span><br><span class="line">Heap&#x2F;HOT_UPDATE                         37650344 ( 21.93)           1430713072 ( 26.79)                66795 (  3.89)            510473008 (  4.45)           1941186080 ( 11.55)</span><br><span class="line">Heap&#x2F;LOCK                               24518122 ( 14.28)            784579904 ( 14.69)               462274 ( 26.93)           3464743948 ( 30.20)           4249323852 ( 25.28)</span><br><span class="line">Heap&#x2F;INSERT+INIT                          244941 (  0.14)              6613407 (  0.12)                    0 (  0.00)                    0 (  0.00)              6613407 (  0.04)</span><br><span class="line">Heap&#x2F;UPDATE+INIT                           58463 (  0.03)              2221594 (  0.04)                    0 (  0.00)                    0 (  0.00)              2221594 (  0.01)</span><br><span class="line">Btree&#x2F;INSERT_LEAF                       50086170 ( 29.18)           1302240420 ( 24.38)               694187 ( 40.44)           3834843816 ( 33.43)           5137084236 ( 30.56)</span><br><span class="line">Btree&#x2F;INSERT_UPPER                        234535 (  0.14)              6097910 (  0.11)                 3704 (  0.22)             20528312 (  0.18)             26626222 (  0.16)</span><br><span class="line">Btree&#x2F;SPLIT_L                              52540 (  0.03)              1681280 (  0.03)                 1938 (  0.11)             11472524 (  0.10)             13153804 (  0.08)</span><br><span class="line">Btree&#x2F;SPLIT_R                             182884 (  0.11)              5852288 (  0.11)                 4976 (  0.29)             24856244 (  0.22)             30708532 (  0.18)</span><br><span class="line">Btree&#x2F;DELETE                               40755 (  0.02)              1990646 (  0.04)                  276 (  0.02)              2141720 (  0.02)              4132366 (  0.02)</span><br><span class="line">                                        --------                      --------                      --------                      --------                      --------</span><br><span class="line">Total                                  171657249                    5340591669 [31.77%]              1716702 [1.00%]           11471399616 [68.23%]          16811991285 [100%]</span><br></pre></td></tr></table></figure>
+
+<p>从上面的测试结果看：</p>
+<ol>
+<li>gp7 的xlog 量是pg9.6一倍多，但是tpc只有其一半</li>
+</ol>
+<ol start="2">
+<li>gp7中FPI 中的比重太多，占了总wal log的95%</li>
+</ol>
+<p>FPI: full page image</p>
+<ol start="3">
+<li>在FPI中，Heap/LOCK类型 gp7占的比重明显过高</li>
+</ol>
+<p>修改pg_xlogdump 添加fpi count的统计，统计带有fpi的xlog record的个数，根据统计结果看出：</p>
+<ol>
+<li>xlog 量的增加是由于带有fpi的xlog record增加导致的</li>
+<li>heap/lock 类型带有fpi的xlog占比如下：</li>
+</ol>
+<p>gp7 4089915/10081592 = 40.8%<br>pg9.6 462274/24518122 = 1.8%</p>
+<p>进一步分析xlog，统计200s内gp7与pg9.6中修改的page个数如下:<br>gp7 总的page个数: 8292522<br>pg9.6总的page个数: 1813842<br>gp 7在tpmc是pg9.6一半的情况下，修改的page个数却是pg9.6的7倍。这里统计的修改的页面个数只计算了相同page的第一次修改。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">1. 编译：开启异步提交，wal block size 8</span><br><span class="line">2. 关闭 page checksum</span><br><span class="line">3. 未尝试的操作：</span><br><span class="line">	 heap和index的页面填充率，减小填充率，避免update时跨页面，以及index 过多的split页面</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>greenplum7</category>
+        <category>performance</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>IO</tag>
+        <tag>磁盘</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Greenplum 分布式事务原理</title>
+    <url>/2020/12/29/Greenplum-%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1%E5%8E%9F%E7%90%86/</url>
+    <content><![CDATA[<p>CommitTransaction<br>prepareDtxTransaction<br>RecordTransactionCommit<br>insert XLOG_XACT_DISTRIBUTED_COMMIT/XLOG_XACT_COMMIT log</p>
+<p>notifyCommittedDtxTransaction</p>
+<p>pg_prepared_xact<br>TwoPhaseState<br>ProcGlobal-&gt;allProcs<br>ProcGlobal-&gt;allPgXact</p>
+<p>gp_distributed_xacts<br>allTmGxact<br>allTmGxact = ProcGlobal-&gt;allTmGxact;</p>
+<h1 id="master-recoverTM"><a href="#master-recoverTM" class="headerlink" title="master recoverTM"></a>master recoverTM</h1><p>recoverInDoubtTransactions<br>对于已经有distributed commit log的事务，执行recovery commit prepared<br>从所有的segment上收集已经prepared 但是没有end的事务<br>对这些事务执行recovery abort prepared</p>
+<h1 id="segment-recover"><a href="#segment-recover" class="headerlink" title="segment recover"></a>segment recover</h1><p>startupXLOG redo所有segment上的xlog，对于分布式事务，segment上有3种xlog：XLOG_XACT_PREPARE、XLOG_XACT_COMMIT_PREPARED、XLOG_XACT_ABORT_PREPARED<br>XLOG_XACT_PREPARE：<br>把已经完成prepared 事务保存到crashRecoverPostCheckpointPreparedTransactions_map_ht<br>XLOG_XACT_COMMIT_PREPARED：<br>redo xlog，并把事务从crashRecoverPostCheckpointPreparedTransactions_map_ht中删除<br>XLOG_XACT_ABORT_PREPARED：<br>redo xlog，并把事务从crashRecoverPostCheckpointPreparedTransactions_map_ht中删除</p>
+<p>在startupXLOG redo完所有的xlog后，调用RecoverPreparedTransactions，把没有提交或者回滚的prepared 事务标记为已经prepared，也就是修改TwoPhaseState。</p>
+<h1 id="GetSnapshotData"><a href="#GetSnapshotData" class="headerlink" title="GetSnapshotData"></a>GetSnapshotData</h1><p>参考<a href="/2020/12/29/Greenplum-GetSnapshot/index.html">GetSnapshotData</a></p>
+<h1 id="DistributedSnapshotWithLocalMapping"><a href="#DistributedSnapshotWithLocalMapping" class="headerlink" title="DistributedSnapshotWithLocalMapping"></a>DistributedSnapshotWithLocalMapping</h1><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">DistributedSnapshot</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * The unique timestamp for this start of the DTM.  It applies to all of</span></span><br><span class="line"><span class="comment">	 * the distributed transactions in this snapshot.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	DistributedTransactionTimeStamp	distribTransactionTimeStamp;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * The lowest distributed transaction being used for distributed snapshots.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	DistributedTransactionId xminAllDistributedSnapshots;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Unique number identifying this particular distributed snapshot.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	DistributedSnapshotId distribSnapshotId;</span><br><span class="line"></span><br><span class="line">	DistributedTransactionId xmin;	<span class="comment">/* XID &lt; xmin are visible to me */</span></span><br><span class="line">	DistributedTransactionId xmax;	<span class="comment">/* XID &gt;= xmax are invisible to me */</span></span><br><span class="line">	int32		count;		<span class="comment">/*  # of distributed xids in inProgressXidArray */</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Array of distributed transactions in progress. */</span></span><br><span class="line">	DistributedTransactionId        *inProgressXidArray;</span><br><span class="line">&#125; DistributedSnapshot;</span><br></pre></td></tr></table></figure>
+<p>DistributedSnapshotWithLocalMapping 由2部分组成，一是DistributedSnapshot，用来记录分布式的snapshot，二是一个cache，用来快速判断分布式事务的。第一部分就不说了，主要说一下第二部分。<br>由于分布式事务可见性的cache分了2层，第一层是DistributedSnapshotWithLocalMapping里面除了DistributedSnapshot里面的部分; 第二层是LocalDistribCacheHtab。下面分别介绍，代码可以参考DistributedSnapshotWithLocalMapping_CommittedTest。</p>
+<h2 id="第一层cache"><a href="#第一层cache" class="headerlink" title="第一层cache"></a>第一层cache</h2><p>该层cache是snapshot级别的，在生成新的snapshot时即清空，在查询过程中通过事务可见性判断不断的添加。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">DistributedSnapshotWithLocalMapping</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	DistributedSnapshot ds;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Cache to perform quick check for localXid, populated after reverse</span></span><br><span class="line"><span class="comment">	 * mapping distributed xid to local xid.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	TransactionId minCachedLocalXid;</span><br><span class="line">	TransactionId maxCachedLocalXid;</span><br><span class="line">	int32 currentLocalXidsCount;</span><br><span class="line">	TransactionId *inProgressMappedLocalXids;</span><br><span class="line">&#125; DistributedSnapshotWithLocalMapping;</span><br></pre></td></tr></table></figure>
+<ol>
+<li>inProgressMappedLocalXids：对当前snapshot而言，正在运行的分布式事务对应的local xid的数组。currentLocalXidsCount是数组的长度。之所以记录local xid，是因为tuple上记录的就是local xid。要想跟进gxid找到对应的local xid，必须通过dlog。</li>
+<li>minCachedLocalXid和maxCachedLocalXid分别是inProgressMappedLocalXids里面的最小值和最大值</li>
+</ol>
+<p>如果待测试的xid 在 (minCachedLocalXid, maxCachedLocalXid) 范围内，则可以遍历inProgressMappedLocalXids数组，如果xid在inProgressMappedLocalXids内，则说明事务一定是inprogress的。否则的话需要做进一步的判断。</p>
+<p><strong>该层cache的限制：</strong></p>
+<ol>
+<li><strong>对rr隔离级别或者rc级别单条sql扫描比较多tuple时，可能效果会明显一些</strong></li>
+</ol>
+<p><strong>原因是cache的有效期是snapshot级别的，对于rr隔离级别，snapshot是整个事务，可能会使用的比较多</strong><br><strong>对于rc由于snapshot是SQL级别的，所以如果涉及的tuple比较多，则也可能会有效果。</strong></p>
+<ol start="2">
+<li><strong>inProgressMappedLocalXids实际上是inProgressXidArray的一个子集，期望是当前事务扫描的tuple涉及的事务比inProgressXidArray里面的事务要少，这样才可能会有加速效果，否则也不会有太多效果。</strong></li>
+</ol>
+<h2 id="第二层cache"><a href="#第二层cache" class="headerlink" title="第二层cache"></a>第二层cache</h2><p>该层cache是session级别的，每个session会维护一个hashmap，记录已经确定提交了的分布式事务信息。记录的信息如下：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">LocalDistribXactCacheEntry</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Distributed and local xids.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	TransactionId localXid;</span><br><span class="line">	<span class="comment">/* MUST BE FIRST: Hash table key. */</span></span><br><span class="line"></span><br><span class="line">	DistributedTransactionId distribXid;</span><br><span class="line"></span><br><span class="line">	int64		visits;</span><br><span class="line"></span><br><span class="line">	dlist_node	lruDoubleLinks;</span><br><span class="line">	<span class="comment">/* list link for LRU */</span></span><br><span class="line"></span><br><span class="line">&#125; LocalDistribXactCacheEntry;</span><br></pre></td></tr></table></figure>
+<ol>
+<li>localXid： segment本地xid</li>
+<li>distribXid： 已经提交的分布式gxid</li>
+<li>visits：访问计数器</li>
+</ol>
+<p>在通过第一层cache无法判断事务可见性时，会使用该cache进行进一步的判断：</p>
+<ol>
+<li>根据localXid 查找是否在LocalDistribCacheHtab中，如果在LocalDistribCacheHtab中，则表示该分布式事务已经提交了，然后在通过分布式snapshot 判断tuple是否可见。</li>
+<li>如果不在LocalDistribCacheHtab中，则查找distributed log</li>
+<li>如果在distributed log中存在<ol>
+<li>如果timestamp不同，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE</li>
+<li>否则，将该事务信息添加到LocalDistribCacheHtab中，然后根据分布式snapshot判断可见性。</li>
+</ol>
+</li>
+<li>如果在distributed log中不存在，以local-only方式添加到LocalDistribCacheHtab中，并返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE</li>
+</ol>
+<p>根据事务可见性判断的顺序，到这一步的时候，local xid是一定已经提交了的，而distributed log里面却没有，则这种情况就定义为local-only。local-only是说该事务是segment本地事务，没有gxid与之对应，所以distribXid = InvalidDistributedTransactionId。<br><img src="/2020/12/29/Greenplum-%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1%E5%8E%9F%E7%90%86/local-only.png" alt="image.png"></p>
+<p>该层cache是session级别的，只记录已经提交过的分布式事务信息。</p>
+<p><strong>问题：</strong></p>
+<ul>
+<li><input checked disabled type="checkbox"> <strong>为什么在local xid已经提交，但是dlog里面没有提交记录时，断定一定是local-only？</strong></li>
+</ul>
+<p>因为gp在事务提交时，segment上是先记录distributed log，然后在记录clog。</p>
+<ul>
+<li><input checked disabled type="checkbox"> <strong>哪些是local-only事务？</strong></li>
+</ul>
+<p>local-only的事务是那些只有local  xid，但是却没有gxid与之对应的事务，目前想到的场景是：</p>
+<ol>
+<li>utility 链接segment，然后执行的事务</li>
+<li>分布式事务，但是dlog已经被truncate了，通过local xid也无法找到对应的gxid</li>
+</ol>
+<p>这2中情况，在事务可见性判断时，就可以只用local snapshot来做。</p>
+<h1 id="dxid-与local-xid的对应关系"><a href="#dxid-与local-xid的对应关系" class="headerlink" title="dxid 与local xid的对应关系"></a>dxid 与local xid的对应关系</h1><p>gp中有2个xid，分别是dxid和local xid，其中dxid是分布式xid，由master生成和维护，local xid是segment本地的xid，有segment生成和维护。为了实现分布式事务，gp通过distributed log把gxid和local xid映射起来。<br>distributed log的记录位置有local xid计算出来，并把timestamp 和 dxid记录到dlog中。映射关系可以查看DistributedLog_AdvanceOldestXmin相关代码。<br>比如在计算segment的oldest xmin时，先在GetSnapshotData里面计算本地局部最小xmin，然后调用DistributedLog_AdvanceOldestXmin和snapshot传递的全局最小的dxid，通过查找dlog找到全局事务最小的本地xmin，代码如下：<br><img src="/2020/12/29/Greenplum-%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1%E5%8E%9F%E7%90%86/DistributedLog_AdvanceOldestXmin.png" alt="image.png"></p>
+<h1 id="HeapTupleSatisfiesMVCC"><a href="#HeapTupleSatisfiesMVCC" class="headerlink" title="HeapTupleSatisfiesMVCC"></a>HeapTupleSatisfiesMVCC</h1><p>对比了一下HeapTupleSatisfiesMVCC的整体流程，与pg9.4几乎一样，除了在处理distributed snapshot时添加了一个DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE hint之外。<br>pg中可见性判断的顺序是，先判断tuple的xmin和xmax是否提交，如果没有提交一定是不可见的，如果 提交了，则再根据snapshot判断，对于这个snapshot是否可见。<br>gp引入dxid和distributed snapshot后，判断的顺序就变为了：</p>
+<ol>
+<li>tuple的xmin和xmax是否已经提交，如果没有提交则一定不可见</li>
+<li>如果已经提交，然后是判断对应的dxid是否已经提交，如果没有提交，则一定不可见</li>
+<li>如果已经提交，根据distributed snapshot判断是否可见</li>
+<li>最后，该分布式事务在”很早之前”已经结束，则直接根据local snapshot判断是否可见</li>
+</ol>
+<p>XidInMVCCSnapshot：</p>
+<ol>
+<li>如果有distributed snapshot &amp;&amp; distributed snapshot check不能忽略则：<ol>
+<li>调用DistributedSnapshotWithLocalMapping_CommittedTest判断分布式snapshot，确定tuple全局是否可见</li>
+<li>DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS：表示分布式事务正在进行中，tuple不可见</li>
+<li>DISTRIBUTEDSNAPSHOT_COMMITTED_VISIBLE：表示分布式事务已经结束，并且tuple可见</li>
+<li>DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE：表示可以忽略分布式事务的判断，只需要执行本地事务判断即可。</li>
+</ol>
+</li>
+</ol>
+<p>哪些事务会返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE？</p>
+<ol start="2">
+<li>调用XidInMVCCSnapshot_Local进行本地事务判断</li>
+</ol>
+<ul>
+<li><input checked disabled type="checkbox"> <strong>DistributedSnapshotWithLocalMapping_CommittedTest，由于tuple记录的还是local xid，所以最终判断时，还是要转换成local xid进行判断，流程如下：</strong></li>
+</ul>
+<ol>
+<li>如果local xid is not normal，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE</li>
+<li>如果第一层cache不为空，则根据第一层cache判断：<ol>
+<li>如果local xid == minCachedLocalXid || local xid == maxCachedLocalXid, 则返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS</li>
+<li>如果local xid 在(minCachedLocalXid, maxCachedLocalXid) 范围内，并且在inProgressMappedLocalXids数组内，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS</li>
+<li>否则进行下一步的判断</li>
+</ol>
+</li>
+<li>根据local xid在第二层cache进行判断<ol>
+<li>如果在LocalDistribCacheHtab中找到，且对应的distribXid为0，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS;否则，进行下一步的判断</li>
+<li>如果LocalDistribCacheHtab中没有找到：<ol>
+<li>读取dlog，如果在dlog中找到，并且timestamp不同，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE</li>
+<li>否则把该事务的分布式信息记录到LocalDistribCacheHtab中，然后进行下一步的判断</li>
+<li>如果dlog中没有找到，则说明事务是local-only事务，记录到LocalDistribCacheHtab中，然后进行下一步的判断</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>如果对于的distribXid &lt; xminAllDistributedSnapshots,则返回DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE</li>
+<li>如果是在vacuum时调用的，则返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS<ol>
+<li>看了一下代码，该情况目前不会发生了。</li>
+</ol>
+</li>
+<li>distribXid &lt; ds-&gt;xmin， 返回DISTRIBUTEDSNAPSHOT_COMMITTED_VISIBLE</li>
+<li>distribXid &gt;= ds-&gt;xmax，返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS</li>
+<li>遍历inProgressXidArray， 如果找到，则维护第一层cache，并返回DISTRIBUTEDSNAPSHOT_COMMITTED_INPROGRESS</li>
+<li>否则，返回DISTRIBUTEDSNAPSHOT_COMMITTED_VISIBLE</li>
+</ol>
+<ul>
+<li><input checked disabled type="checkbox"> <strong>XidInMVCCSnapshot_Local：</strong></li>
+</ul>
+<p><strong>与单机pg一样。这里不在说明了。</strong></p>
+<p><strong>QA：</strong></p>
+<ol>
+<li><strong>哪些情况还需要判断local snapshot？</strong><ol>
+<li>事务可见性判断时，是先判断distributed snapshot，然后在local snapshot，需要再次判断local snapshot的情况是：一是没有distributed snapshot; 而是在判断distributed snapshot时返回了DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE。</li>
+</ol>
+</li>
+<li><strong>DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE的含义到底是什么？</strong><ol>
+<li>哪些事务可见性判断时会出现DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE：<ol>
+<li>local xid is not normal: 这种事务是一定没有gxid与之对应的<ol>
+<li>InvalidTransactionId</li>
+<li>BootstrapTransactionId</li>
+<li>FrozenTransactionId</li>
+</ol>
+</li>
+<li>local xid 对应的gxid 是InvalidDistributedTransactionId：这个就是local-only 事务</li>
+<li>local xid 对应的timestamp 与当前snapshot timestamp不同：说明该事务一定是在重启之前开启的，则该事务一定已经结束，可以按local snapshot为准</li>
+<li>local only事务：参考DistributedSnapshotWithLocalMapping中的分析，该情况也可以按local snapshot为准。</li>
+<li>gxid &lt; xminAllDistributedSnapshots: xminAllDistributedSnapshots表示当前正在运行的分布式事务中gxid最小的事务。小于该值的事务表示肯定是已经结束了的事务。因此也可以按local 事务处理，只判断local snapshot。</li>
+</ol>
+</li>
+<li>从上面的分析看，DISTRIBUTEDSNAPSHOT_COMMITTED_IGNORE的含义表示该事务不是分布式事务或者是分布式事务，但是对应的分布式事务在”很早之前”就已经结束，不用关注该事务的分布式特性，只需要通过local 事务就可以做出正确的判断。</li>
+<li><strong>这个操作依赖于2个必要条件：</strong><ol>
+<li><strong>分布式事务的最终状态一定与所有segment的local事务最终状态是一样的。</strong></li>
+<li><strong>该分布式事务，一定与现在正在运行的分布式事务没有任何运行时间上的交集。</strong></li>
+</ol>
+</li>
+</ol>
+</li>
+<li><strong>为什么是先判断distributed snapshot，然后才可能会在判断local snapshot？</strong></li>
+</ol>
+<p>gp是先segment 提交，然后在master提交，所以如果先distributed snapshot是准确的，而local snapshot是不准的。从上面的分析也可以看到，只有在已经确定分布式事务与现有所有的分布式事务没有任何交集时，才会以local snapshot为准。</p>
+<h1 id="wait-xids"><a href="#wait-xids" class="headerlink" title="wait xids"></a>wait xids</h1><p>wait xids要解决的问题：<a href="/2020/12/29/Greenplum-wait-xid%E9%97%AE%E9%A2%98/index.html">wait xid</a><br>实现的原理是：</p>
+<ol>
+<li>在segment上执行sql时，如果发现有事务冲突，则记录冲突的xid，代码在XactLockTableWait</li>
+<li>在segment执行完commit prepared事务后，把本地记录的wait xids 发给master，代码在：performDtxProtocolCommitOnePhase/performDtxProtocolCommitPrepared</li>
+<li>master在所有的segment执行完commit prepared事务后，等待依赖的事务完成提交，代码在notifyCommittedDtxTransaction</li>
+<li>然后master提交该事务。</li>
+</ol>
+<p>问题：<br><strong>在segment上，wait xids记录在topmemory context，具体参考代码XactLockTableWait，清理该链表是在ProcArrayEndTransaction函数内，那么如果在ProcArrayEndTransaction之前事务回滚了，是不是会造成内存泄漏？</strong><br>好像不会</p>
+<h1 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h1><ol>
+<li>如何判断pg_prepared_xact的事务是残留的，还是正常的？</li>
+</ol>
+<ul>
+<li>根据pg_prepared_xact的gid，在所有正常的master上找gp_distributed_xacts，如果找到，根据sid，判断发起该事务的session是否还活着，如果活着，则是正常的2pc事务。否则为残留的2pc事务。</li>
+</ul>
+<ol start="2">
+<li>为什么recoverInDoubtTransactions中会收集所有segment上为提交的prepared事务？<br>a. master已经记录distributed commit log，但是还未同步到standby，这时发生切主<br>b. segment 已经完成prepared，但是master还未记录distributed commit log，master 挂掉了<br>c. 部分segment prepared成功，部分失败，master在rollback时，或者过程中挂掉了</li>
+</ol>
+<ul>
+<li><input disabled type="checkbox"> xminAllDistributedSnapshots的计算<br>xminAllDistributedSnapshots是在CreateDistributedSnapshot里面计算的，含义是当前活跃事务中dxid最小的那个。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>greenplum6.0</category>
+        <category>transaction</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>distributed transaction</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Postgresql 使用Jdbc 启动wal sender进程</title>
+    <url>/2020/12/29/Postgresql-%E4%BD%BF%E7%94%A8Jdbc-%E5%90%AF%E5%8A%A8wal-sender%E8%BF%9B%E7%A8%8B/</url>
+    <content><![CDATA[<p>链接字符串如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">static String url &#x3D; &quot;jdbc:postgresql:&#x2F;&#x2F;10.101.194.174:52540&#x2F;postgres?user&#x3D;test&amp;password&#x3D;123456&quot; +</span><br><span class="line">        &quot;&amp;replication&#x3D;database&quot; + &#x2F;&#x2F; 启动流复制的标志</span><br><span class="line">        &quot;&amp;assumeMinServerVersion&#x3D;090401&quot; +  &#x2F;&#x2F; 必须加上服务器版本信息，至少9.4</span><br><span class="line">        &quot;&amp;options&#x3D;-c gp_session_role&#x3D;utility&quot; + &#x2F;&#x2F; gp必须以utility方式</span><br><span class="line">        &quot;&amp;preferQueryMode&#x3D;simple&quot;; &#x2F;&#x2F; 必须是simple协议</span><br></pre></td></tr></table></figure>
+<a id="more"></a>
+<p>如何执行流复制的命令：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> ClassNotFoundException, SQLException </span>&#123;</span><br><span class="line">    Class.forName(<span class="string">&quot;org.postgresql.Driver&quot;</span>);</span><br><span class="line">    conn = DriverManager.getConnection(url);</span><br><span class="line">    conn.setAutoCommit(<span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">    Statement stmt = conn.createStatement();</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 输入replication command</span></span><br><span class="line">    ResultSet rs = stmt.executeQuery(<span class="string">&quot;IDENTIFY_SYSTEM&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (rs != <span class="keyword">null</span> &amp;&amp; rs.next())</span><br><span class="line">        System.out.println(<span class="string">&quot;IDENTIFY_SYSTEM: &quot;</span> + rs.getString(<span class="number">1</span>));</span><br><span class="line">    System.out.println(<span class="string">&quot;connect success&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出如下:<br><img src="/2020/12/29/Postgresql-%E4%BD%BF%E7%94%A8Jdbc-%E5%90%AF%E5%8A%A8wal-sender%E8%BF%9B%E7%A8%8B/output.png" alt="output"></p>
+]]></content>
+      <categories>
+        <category>postgresql</category>
+        <category>jdbc</category>
+      </categories>
+      <tags>
+        <tag>jdbc</tag>
+        <tag>postgresql</tag>
       </tags>
   </entry>
   <entry>
