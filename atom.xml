@@ -6,7 +6,7 @@
   <link href="https://zisedeqing.github.io/atom.xml" rel="self"/>
   
   <link href="https://zisedeqing.github.io/"/>
-  <updated>2020-12-29T03:43:55.429Z</updated>
+  <updated>2020-12-29T06:59:33.634Z</updated>
   <id>https://zisedeqing.github.io/</id>
   
   <author>
@@ -21,15 +21,12 @@
     <link href="https://zisedeqing.github.io/2020/12/29/64-bits-GXID/"/>
     <id>https://zisedeqing.github.io/2020/12/29/64-bits-GXID/</id>
     <published>2020-12-29T03:31:27.000Z</published>
-    <updated>2020-12-29T03:43:55.429Z</updated>
+    <updated>2020-12-29T06:59:33.634Z</updated>
     
-    <content type="html"><![CDATA[<p>社区的MR:<a href="https://github.com/greenplum-db/gpdb/pull/10910">https://github.com/greenplum-db/gpdb/pull/10910</a><br>distributed snapshot膨胀：使用相对值，依然32位<br>dlog膨胀：去掉timestamp，报错和之前一样<br>ShmemVariableCache-&gt;nextGxid在异常宕机、主备切换时的维护：<br>作用于ShmemVariableCache-&gt;nextXid一样。<br>2种方案：</p><ol><li>与oid类似，按批来处理，每批记一次xlog。社区认为这个代价太大了。</li><li>现在使用的方案<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Another solution (in this patch) is:</span><br><span class="line"></span><br><span class="line">Always update ShmemVariableCache-&gt;nextGxid in checkpoint and one phase</span><br><span class="line">commit&#x2F;prepare (during both commit and redo code)</span><br><span class="line"></span><br><span class="line">in dtx recovery, for the scenarios, it previously terminate all backends in</span><br><span class="line">such case, now it dispatches a udf to collect the max nextGxid on all segments</span><br><span class="line">and compare with ShmemVariableCache-&gt;nextGxid to get the max nextGxid.</span><br><span class="line">Need to write the code very carefully when handling those orphaned segment</span><br><span class="line">processes on segments.</span><br></pre></td></tr></table></figure>与xid类似，记录到xlog中，从xlog里面恢复到正确的值。<br>对于多master，这个需要做一些改动，因为gxid是在gtm上生成的。</li></ol>]]></content>
+    <content type="html"><![CDATA[<p>社区的MR:<a href="https://github.com/greenplum-db/gpdb/pull/10910">https://github.com/greenplum-db/gpdb/pull/10910</a><br>distributed snapshot膨胀：使用相对值，依然32位<br>dlog膨胀：去掉timestamp，报错和之前一样<br>ShmemVariableCache-&gt;nextGxid在异常宕机、主备切换时的维护：<br>作用于ShmemVariableCache-&gt;nextXid一样。</p><a id="more"></a><p>2种方案：</p><ol><li>与oid类似，按批来处理，每批记一次xlog。社区认为这个代价太大了。</li><li>现在使用的方案<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Another solution (in this patch) is:</span><br><span class="line"></span><br><span class="line">Always update ShmemVariableCache-&gt;nextGxid in checkpoint and one phase</span><br><span class="line">commit&#x2F;prepare (during both commit and redo code)</span><br><span class="line"></span><br><span class="line">in dtx recovery, for the scenarios, it previously terminate all backends in</span><br><span class="line">such case, now it dispatches a udf to collect the max nextGxid on all segments</span><br><span class="line">and compare with ShmemVariableCache-&gt;nextGxid to get the max nextGxid.</span><br><span class="line">Need to write the code very carefully when handling those orphaned segment</span><br><span class="line">processes on segments.</span><br></pre></td></tr></table></figure>与xid类似，记录到xlog中，从xlog里面恢复到正确的值。<br>对于多master，这个需要做一些改动，因为gxid是在gtm上生成的。</li></ol>]]></content>
     
     
-      
-      
-    <summary type="html">&lt;p&gt;社区的MR:&lt;a href=&quot;https://github.com/greenplum-db/gpdb/pull/10910&quot;&gt;https://github.com/greenplum-db/gpdb/pull/10910&lt;/a&gt;&lt;br&gt;distributed snapsh</summary>
-      
+    <summary type="html">&lt;p&gt;社区的MR:&lt;a href=&quot;https://github.com/greenplum-db/gpdb/pull/10910&quot;&gt;https://github.com/greenplum-db/gpdb/pull/10910&lt;/a&gt;&lt;br&gt;distributed snapshot膨胀：使用相对值，依然32位&lt;br&gt;dlog膨胀：去掉timestamp，报错和之前一样&lt;br&gt;ShmemVariableCache-&amp;gt;nextGxid在异常宕机、主备切换时的维护：&lt;br&gt;作用于ShmemVariableCache-&amp;gt;nextXid一样。&lt;/p&gt;</summary>
     
     
     

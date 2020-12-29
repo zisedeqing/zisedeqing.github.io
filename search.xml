@@ -1,6 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>64 bits GXID</title>
+    <url>/2020/12/29/64-bits-GXID/</url>
+    <content><![CDATA[<p>社区的MR:<a href="https://github.com/greenplum-db/gpdb/pull/10910">https://github.com/greenplum-db/gpdb/pull/10910</a><br>distributed snapshot膨胀：使用相对值，依然32位<br>dlog膨胀：去掉timestamp，报错和之前一样<br>ShmemVariableCache-&gt;nextGxid在异常宕机、主备切换时的维护：<br>作用于ShmemVariableCache-&gt;nextXid一样。</p>
+<a id="more"></a>
+<p>2种方案：</p>
+<ol>
+<li>与oid类似，按批来处理，每批记一次xlog。社区认为这个代价太大了。</li>
+<li>现在使用的方案<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Another solution (in this patch) is:</span><br><span class="line"></span><br><span class="line">Always update ShmemVariableCache-&gt;nextGxid in checkpoint and one phase</span><br><span class="line">commit&#x2F;prepare (during both commit and redo code)</span><br><span class="line"></span><br><span class="line">in dtx recovery, for the scenarios, it previously terminate all backends in</span><br><span class="line">such case, now it dispatches a udf to collect the max nextGxid on all segments</span><br><span class="line">and compare with ShmemVariableCache-&gt;nextGxid to get the max nextGxid.</span><br><span class="line">Need to write the code very carefully when handling those orphaned segment</span><br><span class="line">processes on segments.</span><br></pre></td></tr></table></figure>
+与xid类似，记录到xlog中，从xlog里面恢复到正确的值。<br>对于多master，这个需要做一些改动，因为gxid是在gtm上生成的。</li>
+</ol>
+]]></content>
+      <categories>
+        <category>greenplum6.0</category>
+        <category>transaction</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>gxid</tag>
+        <tag>64位</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Greenplum shared snapshot</title>
+    <url>/2020/12/28/Greenplum-shared-snapshot/</url>
+    <content><![CDATA[<p>shared snapshot是gp新引入的一个机制，用于在每个segment上同一个transaction的QE writer与QE reader之间共享snapshot。</p>
+<a id="more"></a>
+<h1 id="引入的原因"><a href="#引入的原因" class="headerlink" title="引入的原因"></a>引入的原因</h1><p>gp为了提升查询性能，把一个plan会查分成多个slice，每个slice在segment上就是一个可以独立运行的执行单元，多个slice使用树形结构组织，数据从下面的slice流向上面的slice，并行执行。每个slice实际上就对应于segment上的一个backend进程(gp称为QE)， 在gp中有两种QE，QE writer和QE reader (分别对应于writer gang和reader gang)。在segment上transaction的所有数据写入操作只能由QE writer来做，但是QE writer和QE reader又属于同一个transaction，所以QE writer和QE reader必须使用相同的snapshot，才能保证数据的一致性。QE writer和QE reader在segment上又是单独backend，所以对于pg来说，他们应该是2个不同的transaction，看到的数据也是不一样的。所以gp就引入了shared snapshot来解决这个问题。</p>
+<h1 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h1><p>QE writer把snapshot 写入共享内存中，QE writer在需要snapshot时，根据mpp_session_id在共享内存中查找QE writer生成的snapshot，这样就使用了与QE writer相同的snapshot，对于数据的可见性也保证了。</p>
+<h1 id="share了哪些"><a href="#share了哪些" class="headerlink" title="share了哪些"></a>share了哪些</h1><p>snapshot<br>sub-transaction status<br>combo-cid mapping<br>等</p>
+<h1 id="关于cursor的处理"><a href="#关于cursor的处理" class="headerlink" title="关于cursor的处理"></a>关于cursor的处理</h1><p>shared snapshot在设计的初衷是满足一般sql的，即执行时使用的是current snapshot，但是cursor使用的snapshot是cursor创建时的snapshot，不是current snapshot。并且cursor还有一个不同的地方是，对于同一个transaction是可以由多个cursor同时存在的，这样就需要存储多个snapshot。<br>gp解决这个问题的方式是，把current snapshot 写入临时文件，QE reader使用时，从临时文件读取对应的snapshot，而不是使用共享内存中的shared snapshot。<br>细节可以看一下：<a href="https://github.com/greenplum-db/gpdb/blob/master/src/backend/utils/time/sharedsnapshot.c">https://github.com/greenplum-db/gpdb/blob/master/src/backend/utils/time/sharedsnapshot.c</a> 文件头注释。</p>
+<h1 id="相关代码"><a href="#相关代码" class="headerlink" title="相关代码"></a>相关代码</h1><p>我们使用的gp版本（4.3.99）shared snapshot代码在tqual.c里面的，后面gp把这块代码单独领出来了。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SharedSnapshotStruct</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="keyword">int</span> 		numSlots;		<span class="comment">/* number of valid Snapshot entries */</span></span><br><span class="line">	<span class="keyword">int</span>			maxSlots;		<span class="comment">/* allocated size of sharedSnapshotArray */</span></span><br><span class="line">	<span class="keyword">int</span> 		nextSlot;		<span class="comment">/* points to the next avail slot. */</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * We now allow direct indexing into this array.</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * We allocate the XIPS below.</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * Be very careful when accessing fields inside here.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	SharedSnapshotSlot	   *slots;</span><br><span class="line"></span><br><span class="line">	TransactionId	   *xips;		<span class="comment">/* VARIABLE LENGTH ARRAY */</span></span><br><span class="line">&#125; SharedSnapshotStruct;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">volatile</span> SharedSnapshotStruct *sharedSnapshotArray;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SharedSnapshotSlot</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	int4			slotindex;  <span class="comment">/* where in the array this one is. */</span></span><br><span class="line">	int4	 		slotid;</span><br><span class="line">	<span class="keyword">pid_t</span>	 		pid; <span class="comment">/* pid of writer seg */</span></span><br><span class="line">	TransactionId	xid;</span><br><span class="line">	CommandId       cid;</span><br><span class="line">	TimestampTz		startTimestamp;</span><br><span class="line">	<span class="keyword">volatile</span> TransactionId   QDxid;</span><br><span class="line">	<span class="keyword">volatile</span> CommandId		QDcid;</span><br><span class="line">	<span class="keyword">volatile</span> <span class="keyword">bool</span>			ready;</span><br><span class="line">	<span class="keyword">volatile</span> uint32			segmateSync;</span><br><span class="line">	uint32		total_subcnt;	<span class="comment">/* Total # of subxids */</span></span><br><span class="line">	uint32		inmemory_subcnt;    <span class="comment">/* subxids in memory */</span></span><br><span class="line">	TransactionId   subxids[MaxGpSavePoints];</span><br><span class="line">	uint32			combocidcnt;</span><br><span class="line">	ComboCidKeyData combocids[MaxComboCids];</span><br><span class="line">	SnapshotData	snapshot;</span><br><span class="line"></span><br><span class="line">&#125; SharedSnapshotSlot;</span><br><span class="line"></span><br><span class="line"><span class="keyword">volatile</span> SharedSnapshotSlot *SharedLocalSnapshotSlot = <span class="literal">NULL</span>;</span><br></pre></td></tr></table></figure>
+<p>CreateSharedSnapshotArray:<br>创建并初始化sharedSnapshotArray<br><img src="/2020/12/28/Greenplum-shared-snapshot/CreateSharedSnapshotArray.png" alt="CreateSharedSnapshotArray"><br>addSharedSnapshot：<br>初始化当前session的shared snapshot并插入到sharedSnapshotArray。<br>初始化SharedLocalSnapshotSlot<br>role: GP_ROLE_DISPATCH || (GP_ROLE_EXECUTE &amp;&amp; Gp_is_writer)</p>
+<p><img src="/2020/12/28/Greenplum-shared-snapshot/addSharedSnapshot.png" alt="addSharedSnapshot"></p>
+<p>lookupSharedSnapshot:<br>从sharedSnapshotArray中找到当前session对应的shared snapshot,并赋给SharedLocalSnapshotSlot<br>role: Entry db singleton QE || (GP_ROLE_EXECUTE &amp;&amp; !Gp_is_writer)<br><img src="/2020/12/28/Greenplum-shared-snapshot/lookupSharedSnapshot.png" alt="lookupSharedSnapshot"></p>
+<p>SharedSnapshotRemove：<br>回收当前session占用的shared snapshot slot 给sharedSnapshotArray<br><img src="/2020/12/28/Greenplum-shared-snapshot/SharedSnapshotRemove.png" alt="SharedSnapshotRemove"></p>
+<p>dumpSharedLocalSnapshot_forCursor<br>把SharedLocalSnapshotSlot dump到文件<br>只有在extended query (declare cusor/PBE protocol)时才会走该流程，由master调用verify_shared_snapshot_ready让所有的节点执行dump。<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/dumpSharedLocalSnapshot_forCursor.png" alt="dumpSharedLocalSnapshot_forCursor"><br>readSharedLocalSnapshot_forCursor<br>从dump的文件恢复shared snapshot，只有extended query时才会走该流程<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/readSharedLocalSnapshot_forCursor.png" alt="readSharedLocalSnapshot_forCursor"></p>
+<p>updateSharedLocalSnapshot<br>更新SharedLocalSnapshotSlot<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/updateSharedLocalSnapshot.png" alt="updateSharedLocalSnapshot"></p>
+]]></content>
+      <categories>
+        <category>greenplum4.3</category>
+        <category>transaction</category>
+      </categories>
+      <tags>
+        <tag>greenplum</tag>
+        <tag>snapshot</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Greenplum jdbc qps 问题</title>
     <url>/2020/12/29/Greenplum-jdbc-qps-%E9%97%AE%E9%A2%98/</url>
     <content><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>目前的现象是使用psql 执行点查，qps比使用jdbc执行相同的sql 要好几倍。<br>在docker里面做了一下测试，下面是测试脚本：</p>
@@ -55,26 +104,6 @@
         <tag>greenplum</tag>
         <tag>jdbc</tag>
         <tag>qps</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>64 bits GXID</title>
-    <url>/2020/12/29/64-bits-GXID/</url>
-    <content><![CDATA[<p>社区的MR:<a href="https://github.com/greenplum-db/gpdb/pull/10910">https://github.com/greenplum-db/gpdb/pull/10910</a><br>distributed snapshot膨胀：使用相对值，依然32位<br>dlog膨胀：去掉timestamp，报错和之前一样<br>ShmemVariableCache-&gt;nextGxid在异常宕机、主备切换时的维护：<br>作用于ShmemVariableCache-&gt;nextXid一样。<br>2种方案：</p>
-<ol>
-<li>与oid类似，按批来处理，每批记一次xlog。社区认为这个代价太大了。</li>
-<li>现在使用的方案<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Another solution (in this patch) is:</span><br><span class="line"></span><br><span class="line">Always update ShmemVariableCache-&gt;nextGxid in checkpoint and one phase</span><br><span class="line">commit&#x2F;prepare (during both commit and redo code)</span><br><span class="line"></span><br><span class="line">in dtx recovery, for the scenarios, it previously terminate all backends in</span><br><span class="line">such case, now it dispatches a udf to collect the max nextGxid on all segments</span><br><span class="line">and compare with ShmemVariableCache-&gt;nextGxid to get the max nextGxid.</span><br><span class="line">Need to write the code very carefully when handling those orphaned segment</span><br><span class="line">processes on segments.</span><br></pre></td></tr></table></figure>
-与xid类似，记录到xlog中，从xlog里面恢复到正确的值。<br>对于多master，这个需要做一些改动，因为gxid是在gtm上生成的。</li>
-</ol>
-]]></content>
-      <categories>
-        <category>greenplum6.0</category>
-        <category>transaction</category>
-      </categories>
-      <tags>
-        <tag>greenplum</tag>
-        <tag>gxid</tag>
-        <tag>64位</tag>
       </tags>
   </entry>
   <entry>
@@ -232,50 +261,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Greenplum shared snapshot</title>
-    <url>/2020/12/28/Greenplum-shared-snapshot/</url>
-    <content><![CDATA[<p>shared snapshot是gp新引入的一个机制，用于在每个segment上同一个transaction的QE writer与QE reader之间共享snapshot。</p>
-<a id="more"></a>
-<h1 id="引入的原因"><a href="#引入的原因" class="headerlink" title="引入的原因"></a>引入的原因</h1><p>gp为了提升查询性能，把一个plan会查分成多个slice，每个slice在segment上就是一个可以独立运行的执行单元，多个slice使用树形结构组织，数据从下面的slice流向上面的slice，并行执行。每个slice实际上就对应于segment上的一个backend进程(gp称为QE)， 在gp中有两种QE，QE writer和QE reader (分别对应于writer gang和reader gang)。在segment上transaction的所有数据写入操作只能由QE writer来做，但是QE writer和QE reader又属于同一个transaction，所以QE writer和QE reader必须使用相同的snapshot，才能保证数据的一致性。QE writer和QE reader在segment上又是单独backend，所以对于pg来说，他们应该是2个不同的transaction，看到的数据也是不一样的。所以gp就引入了shared snapshot来解决这个问题。</p>
-<h1 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h1><p>QE writer把snapshot 写入共享内存中，QE writer在需要snapshot时，根据mpp_session_id在共享内存中查找QE writer生成的snapshot，这样就使用了与QE writer相同的snapshot，对于数据的可见性也保证了。</p>
-<h1 id="share了哪些"><a href="#share了哪些" class="headerlink" title="share了哪些"></a>share了哪些</h1><p>snapshot<br>sub-transaction status<br>combo-cid mapping<br>等</p>
-<h1 id="关于cursor的处理"><a href="#关于cursor的处理" class="headerlink" title="关于cursor的处理"></a>关于cursor的处理</h1><p>shared snapshot在设计的初衷是满足一般sql的，即执行时使用的是current snapshot，但是cursor使用的snapshot是cursor创建时的snapshot，不是current snapshot。并且cursor还有一个不同的地方是，对于同一个transaction是可以由多个cursor同时存在的，这样就需要存储多个snapshot。<br>gp解决这个问题的方式是，把current snapshot 写入临时文件，QE reader使用时，从临时文件读取对应的snapshot，而不是使用共享内存中的shared snapshot。<br>细节可以看一下：<a href="https://github.com/greenplum-db/gpdb/blob/master/src/backend/utils/time/sharedsnapshot.c">https://github.com/greenplum-db/gpdb/blob/master/src/backend/utils/time/sharedsnapshot.c</a> 文件头注释。</p>
-<h1 id="相关代码"><a href="#相关代码" class="headerlink" title="相关代码"></a>相关代码</h1><p>我们使用的gp版本（4.3.99）shared snapshot代码在tqual.c里面的，后面gp把这块代码单独领出来了。</p>
-<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SharedSnapshotStruct</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="keyword">int</span> 		numSlots;		<span class="comment">/* number of valid Snapshot entries */</span></span><br><span class="line">	<span class="keyword">int</span>			maxSlots;		<span class="comment">/* allocated size of sharedSnapshotArray */</span></span><br><span class="line">	<span class="keyword">int</span> 		nextSlot;		<span class="comment">/* points to the next avail slot. */</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * We now allow direct indexing into this array.</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * We allocate the XIPS below.</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * Be very careful when accessing fields inside here.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	SharedSnapshotSlot	   *slots;</span><br><span class="line"></span><br><span class="line">	TransactionId	   *xips;		<span class="comment">/* VARIABLE LENGTH ARRAY */</span></span><br><span class="line">&#125; SharedSnapshotStruct;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">volatile</span> SharedSnapshotStruct *sharedSnapshotArray;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SharedSnapshotSlot</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	int4			slotindex;  <span class="comment">/* where in the array this one is. */</span></span><br><span class="line">	int4	 		slotid;</span><br><span class="line">	<span class="keyword">pid_t</span>	 		pid; <span class="comment">/* pid of writer seg */</span></span><br><span class="line">	TransactionId	xid;</span><br><span class="line">	CommandId       cid;</span><br><span class="line">	TimestampTz		startTimestamp;</span><br><span class="line">	<span class="keyword">volatile</span> TransactionId   QDxid;</span><br><span class="line">	<span class="keyword">volatile</span> CommandId		QDcid;</span><br><span class="line">	<span class="keyword">volatile</span> <span class="keyword">bool</span>			ready;</span><br><span class="line">	<span class="keyword">volatile</span> uint32			segmateSync;</span><br><span class="line">	uint32		total_subcnt;	<span class="comment">/* Total # of subxids */</span></span><br><span class="line">	uint32		inmemory_subcnt;    <span class="comment">/* subxids in memory */</span></span><br><span class="line">	TransactionId   subxids[MaxGpSavePoints];</span><br><span class="line">	uint32			combocidcnt;</span><br><span class="line">	ComboCidKeyData combocids[MaxComboCids];</span><br><span class="line">	SnapshotData	snapshot;</span><br><span class="line"></span><br><span class="line">&#125; SharedSnapshotSlot;</span><br><span class="line"></span><br><span class="line"><span class="keyword">volatile</span> SharedSnapshotSlot *SharedLocalSnapshotSlot = <span class="literal">NULL</span>;</span><br></pre></td></tr></table></figure>
-<p>CreateSharedSnapshotArray:<br>创建并初始化sharedSnapshotArray<br><img src="/2020/12/28/Greenplum-shared-snapshot/CreateSharedSnapshotArray.png" alt="CreateSharedSnapshotArray"><br>addSharedSnapshot：<br>初始化当前session的shared snapshot并插入到sharedSnapshotArray。<br>初始化SharedLocalSnapshotSlot<br>role: GP_ROLE_DISPATCH || (GP_ROLE_EXECUTE &amp;&amp; Gp_is_writer)</p>
-<p><img src="/2020/12/28/Greenplum-shared-snapshot/addSharedSnapshot.png" alt="addSharedSnapshot"></p>
-<p>lookupSharedSnapshot:<br>从sharedSnapshotArray中找到当前session对应的shared snapshot,并赋给SharedLocalSnapshotSlot<br>role: Entry db singleton QE || (GP_ROLE_EXECUTE &amp;&amp; !Gp_is_writer)<br><img src="/2020/12/28/Greenplum-shared-snapshot/lookupSharedSnapshot.png" alt="lookupSharedSnapshot"></p>
-<p>SharedSnapshotRemove：<br>回收当前session占用的shared snapshot slot 给sharedSnapshotArray<br><img src="/2020/12/28/Greenplum-shared-snapshot/SharedSnapshotRemove.png" alt="SharedSnapshotRemove"></p>
-<p>dumpSharedLocalSnapshot_forCursor<br>把SharedLocalSnapshotSlot dump到文件<br>只有在extended query (declare cusor/PBE protocol)时才会走该流程，由master调用verify_shared_snapshot_ready让所有的节点执行dump。<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/dumpSharedLocalSnapshot_forCursor.png" alt="dumpSharedLocalSnapshot_forCursor"><br>readSharedLocalSnapshot_forCursor<br>从dump的文件恢复shared snapshot，只有extended query时才会走该流程<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/readSharedLocalSnapshot_forCursor.png" alt="readSharedLocalSnapshot_forCursor"></p>
-<p>updateSharedLocalSnapshot<br>更新SharedLocalSnapshotSlot<br>    <img src="/2020/12/28/Greenplum-shared-snapshot/updateSharedLocalSnapshot.png" alt="updateSharedLocalSnapshot"></p>
-]]></content>
-      <categories>
-        <category>greenplum4.3</category>
-        <category>transaction</category>
-      </categories>
-      <tags>
-        <tag>greenplum</tag>
-        <tag>snapshot</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Hello World</title>
-    <url>/2020/12/28/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
-      <tags>
-        <tag>test</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>postgresql jdbc 走simple query protocol</title>
     <url>/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/</url>
     <content><![CDATA[<p>默认情况下，jdbc的所有sql使用extended query protocol，不过pg的jdbc提供了使用simple query protocol方法。<br><strong>需要注意的是，使用simple query protocol后，jdbc的cursor功能将会失效，也就是无论setFetchSize设置为多大，jdbc都会一次把数据全部存到jdbc。不过resultset的滚动和update功能还是可以使用的。</strong></p>
@@ -301,6 +286,23 @@
         <tag>jdbc</tag>
         <tag>postgresql</tag>
         <tag>simple</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2020/12/28/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+      <tags>
+        <tag>test</tag>
       </tags>
   </entry>
   <entry>
