@@ -6,7 +6,7 @@
   <link href="https://zisedeqing.github.io/atom.xml" rel="self"/>
   
   <link href="https://zisedeqing.github.io/"/>
-  <updated>2021-01-11T09:27:06.019Z</updated>
+  <updated>2021-01-15T08:10:31.387Z</updated>
   <id>https://zisedeqing.github.io/</id>
   
   <author>
@@ -15,6 +15,27 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>pg 大会--GaussDB 技术探索</title>
+    <link href="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/"/>
+    <id>https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/</id>
+    <published>2021-01-15T07:47:51.000Z</published>
+    <updated>2021-01-15T08:10:31.387Z</updated>
+    
+    <content type="html"><![CDATA[<p>产品是GaussDB(for postgreSQL)</p><a id="more"></a><h2 id="去掉full-page-write"><a href="#去掉full-page-write" class="headerlink" title="去掉full page write"></a>去掉full page write</h2><pre><code>基于共享存储，存储层保证8Kpage的原子写</code></pre><h2 id="预读"><a href="#预读" class="headerlink" title="预读"></a>预读</h2><pre><code>pg基于文件系统的预读，共享存储没有，内核实现预读功能</code></pre><h2 id="tuple-hints"><a href="#tuple-hints" class="headerlink" title="tuple hints"></a>tuple hints</h2><pre><code>pg的tuple hints不记录xlog，复制到standby后，会影响standby的性能添加tuple hints的wal log，在页面淘汰时，批量记录。</code></pre><h2 id="并行redo"><a href="#并行redo" class="headerlink" title="并行redo"></a>并行redo</h2><p><img src="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/xlog-redo.png" alt="xlog-redo"></p><h2 id="整体架构图"><a href="#整体架构图" class="headerlink" title="整体架构图"></a>整体架构图</h2><p><img src="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/gaussdb-pg.png" alt="整体架构图"></p>]]></content>
+    
+    
+    <summary type="html">&lt;p&gt;产品是GaussDB(for postgreSQL)&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="pg 大会" scheme="https://zisedeqing.github.io/categories/pg-%E5%A4%A7%E4%BC%9A/"/>
+    
+    <category term="GaussDB" scheme="https://zisedeqing.github.io/categories/pg-%E5%A4%A7%E4%BC%9A/GaussDB/"/>
+    
+    
+  </entry>
   
   <entry>
     <title>阿里云RDS-数据库内核月报</title>

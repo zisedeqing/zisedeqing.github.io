@@ -20,17 +20,22 @@
     var CONFIG = {"hostname":"zisedeqing.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"valine","storage":true,"lazyload":false,"nav":null,"activeClass":"valine"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="Postgresql 技术博客，欢迎交流">
-<meta property="og:type" content="website">
-<meta property="og:title" content="zisedeqing">
-<meta property="og:url" content="https://zisedeqing.github.io/tags/mirror/index.html">
+  <meta name="description" content="产品是GaussDB(for postgreSQL)">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pg 大会--GaussDB 技术探索">
+<meta property="og:url" content="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/index.html">
 <meta property="og:site_name" content="zisedeqing">
-<meta property="og:description" content="Postgresql 技术博客，欢迎交流">
+<meta property="og:description" content="产品是GaussDB(for postgreSQL)">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/xlog-redo.png">
+<meta property="og:image" content="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/gaussdb-pg.png">
+<meta property="article:published_time" content="2021-01-15T07:47:51.000Z">
+<meta property="article:modified_time" content="2021-01-15T08:10:31.387Z">
 <meta property="article:author" content="zisedeqing">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/xlog-redo.png">
 
-<link rel="canonical" href="https://zisedeqing.github.io/tags/mirror/">
+<link rel="canonical" href="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/">
 
 
 <script id="page-configurations">
@@ -38,12 +43,12 @@
   CONFIG.page = {
     sidebar: "",
     isHome : false,
-    isPost : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>标签: mirror | zisedeqing</title>
+  <title>pg 大会--GaussDB 技术探索 | zisedeqing</title>
   
 
 
@@ -185,57 +190,118 @@
         <div class="content-wrap">
           
 
-          <div class="content tag">
+          <div class="content post posts-expand">
             
 
+    
   
   
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://zisedeqing.github.io/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="zisedeqing">
+      <meta itemprop="description" content="Postgresql 技术博客，欢迎交流">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zisedeqing">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          pg 大会--GaussDB 技术探索
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-01-15 15:47:51 / 修改时间：16:10:31" itemprop="dateCreated datePublished" datetime="2021-01-15T15:47:51+08:00">2021-01-15</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/pg-%E5%A4%A7%E4%BC%9A/" itemprop="url" rel="index"><span itemprop="name">pg 大会</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/pg-%E5%A4%A7%E4%BC%9A/GaussDB/" itemprop="url" rel="index"><span itemprop="name">GaussDB</span></a>
+                </span>
+            </span>
+
+          
   
-  <div class="post-block">
-    <div class="posts-collapse">
-      <div class="collection-title">
-        <h2 class="collection-header">mirror
-          <small>标签</small>
-        </h2>
-      </div>
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
       
-    <div class="collection-year">
-      <span class="collection-header">2020</span>
+        <p>产品是GaussDB(for postgreSQL)</p>
+<a id="more"></a>
+<h2 id="去掉full-page-write"><a href="#去掉full-page-write" class="headerlink" title="去掉full page write"></a>去掉full page write</h2><pre><code>基于共享存储，存储层保证8Kpage的原子写</code></pre>
+<h2 id="预读"><a href="#预读" class="headerlink" title="预读"></a>预读</h2><pre><code>pg基于文件系统的预读，共享存储没有，内核实现预读功能</code></pre>
+<h2 id="tuple-hints"><a href="#tuple-hints" class="headerlink" title="tuple hints"></a>tuple hints</h2><pre><code>pg的tuple hints不记录xlog，复制到standby后，会影响standby的性能
+添加tuple hints的wal log，在页面淘汰时，批量记录。</code></pre>
+<h2 id="并行redo"><a href="#并行redo" class="headerlink" title="并行redo"></a>并行redo</h2><p><img src="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/xlog-redo.png" alt="xlog-redo"></p>
+<h2 id="整体架构图"><a href="#整体架构图" class="headerlink" title="整体架构图"></a>整体架构图</h2><p><img src="/2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/gaussdb-pg.png" alt="整体架构图"></p>
+
     </div>
 
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
+    
+    
+    
 
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2020-12-28T20:44:34+08:00"
-              content="2020-12-28">
-          12-28
-        </time>
-      </div>
+      <footer class="post-footer">
 
-      <div class="post-title">
-          <a class="post-title-link" href="/2020/12/28/Greenplum-6-0-HA/" itemprop="url">
-            <span itemprop="name">Greenplum 6.0 HA</span>
-          </a>
-      </div>
+        
 
-    </header>
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/11/%E9%98%BF%E9%87%8C%E4%BA%91RDS-%E6%95%B0%E6%8D%AE%E5%BA%93%E5%86%85%E6%A0%B8%E6%9C%88%E6%8A%A5/" rel="prev" title="阿里云RDS-数据库内核月报">
+      <i class="fa fa-chevron-left"></i> 阿里云RDS-数据库内核月报
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
   </article>
-
-    </div>
-  </div>
   
   
-  
-
   
 
 
 
           </div>
           
+    <div class="comments" id="valine-comments"></div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -282,6 +348,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8E%BB%E6%8E%89full-page-write"><span class="nav-number">1.</span> <span class="nav-text">去掉full page write</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A2%84%E8%AF%BB"><span class="nav-number">2.</span> <span class="nav-text">预读</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tuple-hints"><span class="nav-number">3.</span> <span class="nav-text">tuple hints</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B9%B6%E8%A1%8Credo"><span class="nav-number">4.</span> <span class="nav-text">并行redo</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84%E5%9B%BE"><span class="nav-number">5.</span> <span class="nav-text">整体架构图</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
