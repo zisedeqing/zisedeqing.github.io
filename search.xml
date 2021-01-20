@@ -4,6 +4,25 @@
   
     
     <entry>
+      <title>收藏的技术网页</title>
+      <link href="2021/01/20/%E6%94%B6%E8%97%8F%E7%9A%84%E7%BD%91%E9%A1%B5/"/>
+      <url>2021/01/20/%E6%94%B6%E8%97%8F%E7%9A%84%E7%BD%91%E9%A1%B5/</url>
+      
+        <content type="html"><![CDATA[<h2 id="一致性hash算法"><a href="#一致性hash算法" class="headerlink" title="一致性hash算法"></a><a href="https://www.cnblogs.com/lpfuture/p/5796398.html">一致性hash算法</a></h2><h2 id="RAFT"><a href="#RAFT" class="headerlink" title="RAFT"></a>RAFT</h2><ol><li><a href="https://blog.csdn.net/shangsongwww/article/details/90287565">Raft算法原理</a></li><li>两篇raft论文的翻译：<br><a href="https://github.com/maemual/raft-zh_cn/blob/master/raft-zh_cn.md">寻找一种易于理解的一致性算法（扩展版）</a><br><a href="https://www.cnblogs.com/linbingdong/p/6442673.html">分布式一致性算法：Raft 算法（论文翻译）</a></li></ol><h2 id="Snowflake"><a href="#Snowflake" class="headerlink" title="Snowflake"></a>Snowflake</h2><p>   <a href="https://zhuanlan.zhihu.com/p/56745552?utm_source=wechat_session">读后感之《The Snowflake Elastic Data Warehouse》</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 收藏 </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>pg 大会--GaussDB 技术探索</title>
       <link href="2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/"/>
       <url>2021/01/15/pg-%E5%A4%A7%E4%BC%9A-gauss-db-%E6%8A%80%E6%9C%AF%E6%8E%A2%E7%B4%A2/</url>
