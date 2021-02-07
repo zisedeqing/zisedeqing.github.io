@@ -191,6 +191,96 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://zisedeqing.github.io/2021/02/07/PostgreSQL-Hot-Standby-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="zisedeqing">
+      <meta itemprop="description" content="Postgresql 技术博客，欢迎交流">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zisedeqing">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/02/07/PostgreSQL-Hot-Standby-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">PostgreSQL Hot Standby 源码分析</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-02-07 11:35:53 / 修改时间：14:40:45" itemprop="dateCreated datePublished" datetime="2021-02-07T11:35:53+08:00">2021-02-07</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/postgresql/" itemprop="url" rel="index"><span itemprop="name">postgresql</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2021/02/07/PostgreSQL-Hot-Standby-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/02/07/PostgreSQL-Hot-Standby-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>基于postgresql 9.4.24源码分析。</p>
+<h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>pg从9.0开始支持了hot standby功能，standby支持了只读查询，大大增加了standby的资源利用率。增加hot standby的commit是：<a target="_blank" rel="noopener" href="https://github.com/postgres/postgres/commit/efc16ea520679d713d98a2c7bf1453c4ff7b91ec">Allow read only connections during recovery, known as Hot Standby</a> 。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2021/02/07/PostgreSQL-Hot-Standby-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://zisedeqing.github.io/2021/01/20/%E6%94%B6%E8%97%8F%E7%9A%84%E7%BD%91%E9%A1%B5/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1023,99 +1113,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://zisedeqing.github.io/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="zisedeqing">
-      <meta itemprop="description" content="Postgresql 技术博客，欢迎交流">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="zisedeqing">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" class="post-title-link" itemprop="url">postgresql jdbc 走simple query protocol</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2020-12-29 09:56:00 / 修改时间：10:07:50" itemprop="dateCreated datePublished" datetime="2020-12-29T09:56:00+08:00">2020-12-29</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/postgresql/" itemprop="url" rel="index"><span itemprop="name">postgresql</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/postgresql/jdbc/" itemprop="url" rel="index"><span itemprop="name">jdbc</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>默认情况下，jdbc的所有sql使用extended query protocol，不过pg的jdbc提供了使用simple query protocol方法。<br><strong>需要注意的是，使用simple query protocol后，jdbc的cursor功能将会失效，也就是无论setFetchSize设置为多大，jdbc都会一次把数据全部存到jdbc。不过resultset的滚动和update功能还是可以使用的。</strong></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/12/29/postgresql-jdbc-%E8%B5%B0simple-query-protocol/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1185,7 +1182,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -1198,7 +1195,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-count">21</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

@@ -9,6 +9,13 @@
 
 
     <url>
+        <loc>https://zisedeqing.github.io/categories/postgresql/</loc>
+        <lastmod>2021-02-07T06:40:45.083Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
         <loc>https://zisedeqing.github.io/categories/%25E6%2594%25B6%25E8%2597%258F/</loc>
         <lastmod>2021-01-26T12:26:25.016Z</lastmod>
         <changefreq>weekly</changefreq>
@@ -59,13 +66,6 @@
 
     <url>
         <loc>https://zisedeqing.github.io/categories/postgresql/jdbc/</loc>
-        <lastmod>2020-12-29T07:57:43.463Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
-        <loc>https://zisedeqing.github.io/categories/postgresql/</loc>
         <lastmod>2020-12-29T07:57:43.463Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.2</priority>

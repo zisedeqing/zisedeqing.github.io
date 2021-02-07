@@ -3,6 +3,20 @@
 
 
     <url>
+        <loc>https://zisedeqing.github.io/tags/standby/</loc>
+        <lastmod>2021-02-07T06:40:45.083Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
+        <loc>https://zisedeqing.github.io/tags/postgresql/</loc>
+        <lastmod>2021-02-07T06:40:45.083Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.2</priority>
+    </url>
+
+    <url>
         <loc>https://zisedeqing.github.io/tags/distributed-transaction/</loc>
         <lastmod>2021-01-21T08:02:03.196Z</lastmod>
         <changefreq>weekly</changefreq>
@@ -40,13 +54,6 @@
     <url>
         <loc>https://zisedeqing.github.io/tags/IO/</loc>
         <lastmod>2020-12-29T12:03:04.353Z</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.2</priority>
-    </url>
-
-    <url>
-        <loc>https://zisedeqing.github.io/tags/postgresql/</loc>
-        <lastmod>2020-12-29T07:57:43.463Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.2</priority>
     </url>
